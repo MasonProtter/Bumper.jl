@@ -103,8 +103,9 @@ end
 
 
 Bumper.jl can be useful to those who are trying to compile standalone static binaries with StaticCompiler.jl since those binaries
-do not have julia's GC available to them. To do so, we won't be able to count on the global default buffer, but will instead have
-to explicitly provide it. We'll also need to use =alloc_nothrow= instead due to a current limitation of StaticCompiler.
+do not have julia's GC available to them. To do so, we won't be able to count on the global default buffer or =with_buffer=, but
+will instead have to explicitly provide it. We'll also need to use =alloc_nothrow= instead due to a current limitation of
+StaticCompiler.
 
 #+begin_src julia
 using Bumper, StaticCompiler, StaticTools
