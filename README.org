@@ -116,7 +116,7 @@ function foo(argc::Int, argv::Ptr{Ptr{UInt8}})
     s = 0
     for i ∈ 1:10000
         @no_escape buf begin # <----- Note that we specify buf here.
-            # allocate a chunk of n bytes at a time before resetting
+            # allocate a chunk of n bytes at a time before resetting, so we don't spill over our 100 byte limit
             x = alloc_nothrow(Int, buf, n) # <--- Note that we're using alloc_nothrow
             x .= 1
             s += sum(x)
@@ -134,3 +134,5 @@ run(`./foo 5`) # run it
 
 : The sum is: 50000
 : Process(`./foo 5`, ProcessExited(0))
+
+
