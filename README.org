@@ -20,7 +20,7 @@ set_default_buffer_size!(1000) # Allow the buffer to hold as much as 1000 bytes
 Now we're ready to use it. I recommend only ever using Bumper within a =@no_escape= block like so:
 #+begin_src julia
 function f(x::Vector{Int})
- @no_escape begin
+    @no_escape begin
         y = alloc(Int, length(x)) # This will allocate a `PtrArray` from StrideArraysCore.jl using memory from the default buffer.
         y .= x .+ 1
         sum(y)
@@ -84,7 +84,7 @@ Nice!
 ** Changing buffers
 
 One potential way things can go wrong is if two asychronous tasks are both allocating or deallocating from a buffer at the same time, so
-Bumper.jl provides an easy way to work with multiple buffers: `with_buffer`:
+Bumper.jl provides an easy way to work with multiple buffers: =with_buffer=:
 
 #+begin_src julia
 with_buffer(AllocBuffer(100)) do
@@ -99,3 +99,38 @@ end
 
 =with_buffer= uses ContexVariablesX.jl to be safe against concurrent access, and provide dynamic scoping of the buffer.
 
+** Advanced usage with StaticCompiler.jl
+
+
+Bumper.jl can be useful to those who are trying to compile standalone static binaries with StaticCompiler.jl since those binaries
+do not have julia's GC available to them. To do so, we won't be able to count on the global default buffer, but will instead have
+to explicitly provide it. We'll also need to use =alloc_nothrow= instead due to a current limitation of StaticCompiler.
+
+#+begin_src julia
+using Bumper, StaticCompiler, StaticTools
+function foo(argc::Int, argv::Ptr{Ptr{UInt8}})
+    n = argparse(Int, argv, 2)
+    v = MallocArray{UInt8}(undef, 100) # 100 bytes of malloc'd memory to work with.
+    buf = AllocBuffer(v)
+   
+    s = 0
+    for i ∈ 1:10000
+        @no_escape buf begin # <----- Note that we specific buf here.
+            # allocate a chunk of n bytes at a time before resetting
+            x = alloc_nothrow(Int, buf, n) # <--- Note that we're using alloc_nothrow
+            x .= 1
+            s += sum(x)
+        end
+    end
+    
+    printf(c"The sum is: %d\n", s)
+    free(v)
+end
+
+compile_executable(foo, (Int, Ptr{Ptr{UInt8}}), "./") # compile it to an execuable
+
+run(`./foo 5`) # run it
+#+end_src
+
+: The sum is: 50000
+: Process(`./foo 5`, ProcessExited(0))
