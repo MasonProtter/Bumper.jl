@@ -78,8 +78,8 @@ function StrideArraysCore.PtrArray{T}(b::AllocBuffer, s::Vararg{Integer, N}) whe
     PtrArray(ptr, s, x, all_dense(Val{N}()))
 end
 
-alloc(T, s...) = PtrArray{T}(buf[], s...)
-alloc(T, buf::AllocBuffer, s...) = PtrArray{T}(buf, s...)
+alloc(::Type{T}, s...) where {T} = PtrArray{T}(buf[], s...)
+alloc(::Type{T}, buf::AllocBuffer, s...) where {T} = PtrArray{T}(buf, s...)
 
 with_buffer(f, b::AllocBuffer) = with_context(f, buf => b) 
 
