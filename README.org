@@ -34,7 +34,8 @@ f([1,2,3])
 
 When you use =@no_escape=, you are promising that any code enclosed in the supplied code block will not leak any memory
 created by =alloc=. That is, you are *only* allowed to do intermediate =alloc= allocations inside a =@no_escape= block,
-and the lifetime of those allocations is the block. !!!This is important!!!
+and the lifetime of those allocations is the block. This is important. Once a =@no_escape= block finishes running, it
+will reset it's internal pointer to it's position from before the block started. 
 
 Let's compare the performance of =f= to the equivalent with an intermediate heap allocation:
 
@@ -77,6 +78,8 @@ end
 
 Nice!
 
+
+=@no_escape= blocks can be nested as much as you want (so long as the allocator has enough memory to store the objects you're using.
 
 ** Changing buffers
 
