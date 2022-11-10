@@ -115,7 +115,7 @@ function foo(argc::Int, argv::Ptr{Ptr{UInt8}})
    
     s = 0
     for i ∈ 1:10000
-        @no_escape buf begin # <----- Note that we specific buf here.
+        @no_escape buf begin # <----- Note that we specify buf here.
             # allocate a chunk of n bytes at a time before resetting
             x = alloc_nothrow(Int, buf, n) # <--- Note that we're using alloc_nothrow
             x .= 1
