@@ -8,13 +8,13 @@ using ContextVariablesX
 
 allow_ptr_array_to_escape() = false
 
-mutable struct AllocBuffer
-    buf::Vector{UInt8}
+mutable struct AllocBuffer{Storage}
+    buf::Storage
     offset::UInt
 end
 AllocBuffer(max_size)  = AllocBuffer(Vector{UInt8}(undef, max_size), UInt(0))
 
-@contextvar buf::AllocBuffer = AllocBuffer(0)
+@contextvar buf = AllocBuffer(0)
 
 function set_default_buffer_size!(sz::Int)
     resize!(buf[].buf, sz)
@@ -81,6 +81,6 @@ end
 alloc(::Type{T}, s...) where {T} = PtrArray{T}(buf[], s...)
 alloc(::Type{T}, buf::AllocBuffer, s...) where {T} = PtrArray{T}(buf, s...)
 
-with_buffer(f, b::AllocBuffer) = with_context(f, buf => b) 
+with_buffer(f, b::AllocBuffer) = with_context(f, buf => b)
 
 end
