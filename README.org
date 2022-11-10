@@ -1,0 +1,98 @@
+:PROPERTIES:
+:header-args: :session jlbumper
+:END:
+* Bumper.jl
+
+Bumper.jl is an experimental package that aims to make working with bump allocators easy and safe-ish. You can dynamically
+allocate memory to these bump allocators, and reset them at the end of a code block, just like julia's default stack.
+Allocating to the a `AllocBuffer` with Bumper.jl is just as efficient as stack allocation.
+
+The point of this is to not have to pay the hefty cost of intermediate allocations. Bumper.jl has a global default buffer,
+which starts off with =0= bytes of capacity. To start, we'll want to give it a non-zero size.
+
+#+begin_src julia
+using Bumper
+set_default_buffer_size!(1000) # Allow the buffer to hold as much as 1000 bytes
+#+end_src
+
+: 1000
+
+Now we're ready to use it. I recommend only ever using Bumper within a =@no_escape= block like so:
+#+begin_src julia
+function f(x::Vector{Int})
+ @no_escape begin
+        y = alloc(Int, length(x)) # This will allocate a `PtrArray` from StrideArraysCore.jl using memory from the default buffer.
+        y .= x .+ 1
+        sum(y)
+    end
+end
+
+f([1,2,3])
+#+end_src
+
+: 9
+
+When you use =@no_escape=, you are promising that any code enclosed in the supplied code block will not leak any memory
+created by =alloc=. That is, you are *only* allowed to do intermediate =alloc= allocations inside a =@no_escape= block,
+and the lifetime of those allocations is the block. !!!This is important!!!
+
+Let's compare the performance of =f= to the equivalent with an intermediate heap allocation:
+
+#+begin_src julia
+using BenchmarkTools
+@benchmark f($[1,2,3])
+#+end_src
+
+: BenchmarkTools.Trial: 10000 samples with 999 evaluations.
+:  Range (min … max):  10.771 ns … 16.807 ns  ┊ GC (min … max): 0.00% … 0.00%
+:  Time  (median):     10.781 ns              ┊ GC (median):    0.00%
+:  Time  (mean ± σ):   10.794 ns ±  0.110 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+: 
+:   ▅        █                                                   
+:   █▁▁▁▁▁▁▁▁█▂▁▁▁▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁▇▂▁▁▁▁▁▁▁▅ ▂
+:   10.8 ns         Histogram: frequency by time        10.8 ns <
+: 
+:  Memory estimate: 0 bytes, allocs estimate: 0.
+
+#+begin_src julia
+function g(x::Vector{Int})
+    y = Vector{Int}(undef, length(x))
+    y .= x .+ 1
+    sum(y)
+end
+
+@benchmark g($[1,2,3])
+#+end_src
+
+: BenchmarkTools.Trial: 10000 samples with 996 evaluations.
+:  Range (min … max):  22.390 ns …   6.642 μs  ┊ GC (min … max):  0.00% … 99.13%
+:  Time  (median):     25.351 ns               ┊ GC (median):     0.00%
+:  Time  (mean ± σ):   35.076 ns ± 161.291 ns  ┊ GC (mean ± σ):  12.90% ±  2.80%
+: 
+:    ▁▃▇██▆▄▂▁▁  ▁                  ▁▃▅▅▆▆▅▅▄▃▃▂▂▁▁▁▂▂▃▂▁▁       ▂
+:   ▆█████████████████▇▆▇▆▇▇▇▇▇▇▆▇▆████████████████████████▆▆▆▅▅ █
+:   22.4 ns       Histogram: log(frequency) by time      45.6 ns <
+: 
+:  Memory estimate: 80 bytes, allocs estimate: 1.
+
+Nice!
+
+
+** Changing buffers
+
+One potential way things can go wrong is if two asychronous tasks are both allocating or deallocating from a buffer at the same time, so
+Bumper.jl provides an easy way to work with multiple buffers: `with_buffer`:
+
+#+begin_src julia
+with_buffer(AllocBuffer(100)) do
+    @no_escape begin
+        y = alloc(Int, 10) .= 1
+        sum(y)
+    end
+end
+#+end_src
+
+: 10
+
+=with_buffer= uses ContexVariablesX.jl to be safe against concurrent access, and provide dynamic scoping of the buffer.
+
