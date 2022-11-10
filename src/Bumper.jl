@@ -1,6 +1,6 @@
 module Bumper
 
-export no_escape, @no_escape, alloc, with_buffer, AllocBuffer, set_default_buffer_size!, reset_buffer!
+export no_escape, @no_escape, alloc, with_buffer, AllocBuffer, set_default_buffer_size!, reset_buffer!, alloc_nothrow
 
 using StrideArraysCore, StrideArrays
 using StrideArraysCore: calc_strides_len, all_dense
@@ -12,7 +12,8 @@ mutable struct AllocBuffer{Storage}
     buf::Storage
     offset::UInt
 end
-AllocBuffer(max_size)  = AllocBuffer(Vector{UInt8}(undef, max_size), UInt(0))
+AllocBuffer(max_size::Int)  = AllocBuffer(Vector{UInt8}(undef, max_size), UInt(0))
+AllocBuffer(storage) = AllocBuffer(storage, UInt(0))
 
 @contextvar buf = AllocBuffer(0)
 
@@ -34,6 +35,14 @@ function alloc_ptr(b::AllocBuffer, sz::Int)
     b.offset > maxsize(b) && error("alloc: Buffer out of memory. Consider resizing it, or checking for memory leaks.")
     ptr
 end
+
+function alloc_ptr_nothrow(b::AllocBuffer, sz::Int)
+    # @info "Allocating $sz bytes"
+    ptr = pointer(b) + b.offset
+    b.offset += sz
+    ptr
+end
+
 
 function no_escape(f, b::AllocBuffer)
     offset = b.offset
@@ -80,6 +89,16 @@ end
 
 alloc(::Type{T}, s...) where {T} = PtrArray{T}(buf[], s...)
 alloc(::Type{T}, buf::AllocBuffer, s...) where {T} = PtrArray{T}(buf, s...)
+
+struct NoThrow end
+function StrideArraysCore.PtrArray{T}(b::AllocBuffer, ::NoThrow, s::Vararg{Integer, N}) where {T, N}
+    x, L = calc_strides_len(T, s)
+    ptr = reinterpret(Ptr{T}, alloc_ptr_nothrow(b, L))
+    PtrArray(ptr, s, x, all_dense(Val{N}()))
+end
+
+alloc_nothrow(::Type{T}, buf::AllocBuffer, s...) where {T} = PtrArray{T}(buf, NoThrow(), s...)
+
 
 with_buffer(f, b::AllocBuffer) = with_context(f, buf => b)
 
