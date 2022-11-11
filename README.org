@@ -3,9 +3,9 @@
 :END:
 * Bumper.jl
 
-Bumper.jl is an experimental package that aims to make working with bump allocators easy and safe-ish. You can dynamically
-allocate memory to these bump allocators, and reset them at the end of a code block, just like julia's default stack.
-Allocating to the a =AllocBuffer= with Bumper.jl can be just as efficient as stack allocation.
+Bumper.jl is an experimental package that aims to make working with bump allocators easy and safer (when used right; alloc_nothrow
+is less safe). You can dynamically allocate memory to these bump allocators, and reset them at the end of a code block, just like
+Julia's default stack. Allocating to the a =AllocBuffer= with Bumper.jl can be just as efficient as stack allocation.
 
 The point of this is to not have to pay the hefty cost of intermediate allocations. Bumper.jl has a global default buffer,
 which starts off with =1MB= of capacity. 
@@ -18,7 +18,7 @@ using StrideArrays # Not necessary, but makes operations like broadcasting with 
 # to Octavian.jl, you might have to do Pkg.add("Octavian@0.3.17")
 #+end_src
 
-Now we're ready to use it. The simplest way to use Bumper is to rely on it's default buffer implicitly like so:
+Now we're ready to use it. The simplest way to use Bumper is to rely on its default buffer implicitly like so:
 #+begin_src julia
 function f(x::Vector{Int})
     @no_escape begin
@@ -36,7 +36,7 @@ f([1,2,3])
 When you use =@no_escape=, you are promising that any code enclosed in the supplied code block will not leak any memory
 created by =alloc=. That is, you are *only* allowed to do intermediate =alloc= allocations inside a =@no_escape= block,
 and the lifetime of those allocations is the block. This is important. Once a =@no_escape= block finishes running, it
-will reset it's internal pointer to it's position from before the block started.
+will reset its internal pointer to its position from before the block started.
 
 
 Let's compare the performance of =f= to the equivalent with an intermediate heap allocation:
@@ -134,7 +134,7 @@ Some miscellaneous notes:
 ** Concurrency and parallelism
 
 Every task has its own *independent* default buffer which inherit the size of their parent's task buffer. A task's buffer is only created
-if it is used, so this does not slow down the spawning of julia tasks in general. Here's a demo that the default buffers are different:
+if it is used, so this does not slow down the spawning of Julia tasks in general. Here's a demo that the default buffers are different:
 
 #+begin_src julia
 using Bumper
@@ -179,7 +179,7 @@ This is dynamically scoped, so any nested function calls inside the =with_buffer
 ** Advanced usage with StaticCompiler.jl
 
 Bumper.jl can be useful to those who are trying to compile standalone static binaries with StaticCompiler.jl since those binaries
-do not have julia's GC available to them. To do so, we won't be able to count on the global default buffer or =with_buffer=, but
+do not have Julia's GC available to them. To do so, we won't be able to count on the global default buffer or =with_buffer=, but
 will instead have to explicitly provide it. We'll also need to use =alloc_nothrow= instead due to a current limitation of
 StaticCompiler.
 
