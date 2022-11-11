@@ -1,9 +1,13 @@
 name = "Bumper"
 uuid = "8ce10254-0962-460f-a3d8-1f77fea1446e"
 authors = ["MasonProtter <mason.protter@icloud.com>"]
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
-ContextVariablesX = "6add18c4-b38d-439d-96f6-d6bc489c04c5"
-StrideArrays = "d1fa6d79-ef01-42a6-86c9-f7c551f8593b"
 StrideArraysCore = "7792a7ef-975c-4747-a70f-980b88e8d1da"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

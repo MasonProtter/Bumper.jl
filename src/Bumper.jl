@@ -1,10 +1,9 @@
 module Bumper
 
-export no_escape, @no_escape, alloc, with_buffer, AllocBuffer, set_default_buffer_size!, reset_buffer!, alloc_nothrow
+export default_buffer, alloc_nothrow, @no_escape, alloc, with_buffer, AllocBuffer, set_default_buffer_size!
 
-using StrideArraysCore, StrideArrays
+using StrideArraysCore
 using StrideArraysCore: calc_strides_len, all_dense
-using ContextVariablesX
 
 allow_ptr_array_to_escape() = false
 
@@ -15,18 +14,23 @@ end
 AllocBuffer(max_size::Int)  = AllocBuffer(Vector{UInt8}(undef, max_size), UInt(0))
 AllocBuffer(storage) = AllocBuffer(storage, UInt(0))
 
-@contextvar buf = AllocBuffer(0)
+maxsize(b::AllocBuffer) = length(b.buf)
+Base.pointer(b::AllocBuffer) = pointer(b.buf)
+
+const buffer_size = Ref(0)
+const default_buffer_key = gensym(:buffer)
+function default_buffer()
+    get!(() -> AllocBuffer(buffer_size[]), task_local_storage(), default_buffer_key)::AllocBuffer{Vector{UInt8}}
+end
 
 function set_default_buffer_size!(sz::Int)
-    resize!(buf[].buf, sz)
+    resize!(default_buffer().buf, sz)
+    buffer_size[] = sz
     sz
 end
 
 reset_buffer!(b::AllocBuffer) = b.offset = UInt(0)
-reset_buffer!() = reset_buffer!(buf[])
-
-maxsize(b::AllocBuffer) = length(b.buf)
-Base.pointer(b::AllocBuffer) = pointer(b.buf)
+reset_buffer!() = reset_buffer!(default_buffer())
 
 function alloc_ptr(b::AllocBuffer, sz::Int)
     # @info "Allocating $sz bytes"
@@ -43,7 +47,6 @@ function alloc_ptr_nothrow(b::AllocBuffer, sz::Int)
     ptr
 end
 
-
 function no_escape(f, b::AllocBuffer)
     offset = b.offset
     res = f()
@@ -53,6 +56,7 @@ function no_escape(f, b::AllocBuffer)
     end
     res
 end
+no_escape(f) = no_escape(f, default_buffer())
 
 macro no_escape(b, ex)
     quote
@@ -68,7 +72,7 @@ macro no_escape(b, ex)
 end
 macro no_escape(ex)
     quote
-        b = buf[]
+        b = default_buffer()
         offset = b.offset
         res = $(esc(ex))
         b.offset = offset
@@ -79,7 +83,7 @@ macro no_escape(ex)
     end
 end
 
-no_escape(f) = no_escape(f, buf[])
+with_buffer(f, b::AllocBuffer) = task_local_storage(f, default_buffer_key, b)
 
 function StrideArraysCore.PtrArray{T}(b::AllocBuffer, s::Vararg{Integer, N}) where {T, N}
     x, L = calc_strides_len(T, s)
@@ -87,7 +91,7 @@ function StrideArraysCore.PtrArray{T}(b::AllocBuffer, s::Vararg{Integer, N}) whe
     PtrArray(ptr, s, x, all_dense(Val{N}()))
 end
 
-alloc(::Type{T}, s...) where {T} = PtrArray{T}(buf[], s...)
+alloc(::Type{T}, s...) where {T} = PtrArray{T}(default_buffer(), s...)
 alloc(::Type{T}, buf::AllocBuffer, s...) where {T} = PtrArray{T}(buf, s...)
 
 struct NoThrow end
@@ -99,7 +103,6 @@ end
 
 alloc_nothrow(::Type{T}, buf::AllocBuffer, s...) where {T} = PtrArray{T}(buf, NoThrow(), s...)
 
-
-with_buffer(f, b::AllocBuffer) = with_context(f, buf => b)
+ 
 
 end
