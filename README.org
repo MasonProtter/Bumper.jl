@@ -3,7 +3,7 @@
 :END:
 * Bumper.jl
 
-Bumper.jl is an experimental package that aims to make working with bump allocators easy and safe (when used right; alloc_nothrow
+Bumper.jl is an experimental package that aims to make working with bump allocators easy and safer (when used right; alloc_nothrow
 is less safe). You can dynamically allocate memory to these bump allocators, and reset them at the end of a code block, just like
 Julia's default stack. Allocating to the a =AllocBuffer= with Bumper.jl can be just as efficient as stack allocation.
 
