@@ -5,7 +5,7 @@ export default_buffer, alloc_nothrow, @no_escape, alloc, with_buffer, AllocBuffe
 using StrideArraysCore
 using StrideArraysCore: calc_strides_len, all_dense
 
-allow_ptr_array_to_escape() = false
+warn_when_resizing_buffer() = true
 
 mutable struct AllocBuffer{Storage}
     buf::Storage
@@ -14,10 +14,9 @@ end
 AllocBuffer(max_size::Int)  = AllocBuffer(Vector{UInt8}(undef, max_size), UInt(0))
 AllocBuffer(storage) = AllocBuffer(storage, UInt(0))
 
-maxsize(b::AllocBuffer) = length(b.buf)
 Base.pointer(b::AllocBuffer) = pointer(b.buf)
 
-const buffer_size = Ref(0)
+const buffer_size = Ref(1_000_000)
 const default_buffer_key = gensym(:buffer)
 function default_buffer()
     get!(() -> AllocBuffer(buffer_size[]), task_local_storage(), default_buffer_key)::AllocBuffer{Vector{UInt8}}
@@ -33,26 +32,40 @@ reset_buffer!(b::AllocBuffer) = b.offset = UInt(0)
 reset_buffer!() = reset_buffer!(default_buffer())
 
 function alloc_ptr(b::AllocBuffer, sz::Int)
-    # @info "Allocating $sz bytes"
     ptr = pointer(b) + b.offset
     b.offset += sz
-    b.offset > maxsize(b) && error("alloc: Buffer out of memory. Consider resizing it, or checking for memory leaks.")
+    b.offset > sizeof(b.buf) && error("alloc: Buffer out of memory. Consider resizing it, or checking for memory leaks.")
     ptr
 end
 
+function alloc_ptr(b::AllocBuffer{<:Vector}, sz::Int)
+    ptr = pointer(b) + b.offset
+    b.offset += sz
+    b.offset > sizeof(b.buf) && auto_resize!(b, sz)
+    ptr
+end
+
+@noinline function auto_resize!(b::AllocBuffer, sz)
+    if warn_when_resizing_buffer()
+        @warn "alloc: Buffer memory limit reached, auto-resizing now. This may indicate a memory leak.\n
+    To disable these warnings, run `Bumper.warn_when_resizing_buffer() = false`."
+    end
+    resize!(b.buf, length(b.buf) + max(2sz, 1_000))
+end
+
 function alloc_ptr_nothrow(b::AllocBuffer, sz::Int)
-    # @info "Allocating $sz bytes"
     ptr = pointer(b) + b.offset
     b.offset += sz
     ptr
 end
+
 
 function no_escape(f, b::AllocBuffer)
     offset = b.offset
     res = f()
     b.offset = offset
     if res isa PtrArray && !(allow_ptr_array_to_escape())
-        error("Tried to return a PtrArray from a `no_escape` block. If you really want to do this, evaluate   Bumper.allow_ptrarray_to_escape() = true")
+        error("Tried to return a PtrArray from a `no_escape` block. If you really want to do this, evaluate Bumper.allow_ptrarray_to_escape() = true")
     end
     res
 end
@@ -65,7 +78,7 @@ macro no_escape(b, ex)
         res = $(esc(ex))
         b.offset = offset
         if res isa PtrArray && !(allow_ptr_array_to_escape())
-            error("Tried to return a PtrArray from a `no_escape` block. If you really want to do this, evaluate   Bumper.allow_ptrarray_to_escape() = true")
+            error("Tried to return a PtrArray from a `no_escape` block. If you really want to do this, evaluate Bumper.allow_ptrarray_to_escape() = true")
         end
         res
     end
@@ -100,9 +113,7 @@ function StrideArraysCore.PtrArray{T}(b::AllocBuffer, ::NoThrow, s::Vararg{Integ
     ptr = reinterpret(Ptr{T}, alloc_ptr_nothrow(b, L))
     PtrArray(ptr, s, x, all_dense(Val{N}()))
 end
+alloc_nothrow(::Type{T}, buf::AllocBuffer, s...) where {T} = PtrArray{T}(buf, NoThrow(), s...) 
 
-alloc_nothrow(::Type{T}, buf::AllocBuffer, s...) where {T} = PtrArray{T}(buf, NoThrow(), s...)
-
- 
 
 end
