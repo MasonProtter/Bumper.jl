@@ -47,8 +47,7 @@ end
 
 @noinline function auto_resize!(b::AllocBuffer, sz)
     if warn_when_resizing_buffer()
-        @warn "alloc: Buffer memory limit reached, auto-resizing now. This may indicate a memory leak.\n
-    To disable these warnings, run `Bumper.warn_when_resizing_buffer() = false`."
+        @warn "alloc: Buffer memory limit reached, auto-resizing now. This may indicate a memory leak.\nTo disable these warnings, run `Bumper.warn_when_resizing_buffer() = false`."
     end
     resize!(b.buf, length(b.buf) + max(2sz, 1_000))
 end

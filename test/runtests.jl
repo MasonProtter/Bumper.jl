@@ -35,3 +35,13 @@ end
 
     @test default_buffer() !== with_buffer(default_buffer, AllocBuffer(100))
 end
+
+@testset "Buffer spilling" begin
+    with_buffer(AllocBuffer(0)) do
+        @no_escape begin
+            v = @test_logs (:warn,  "alloc: Buffer memory limit reached, auto-resizing now. This may indicate a memory leak.\nTo disable these warnings, run `Bumper.warn_when_resizing_buffer() = false`.") alloc(Int, 10)
+            v .= 1
+            @test sum(v) == 10
+        end
+    end
+end
