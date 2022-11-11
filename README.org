@@ -121,8 +121,9 @@ Some miscellaneous notes:
   corruptuon.
 + You can use =alloc= outside of an =@no_escape= block, but that will leak memory from the buffer and cause it to overflow if you do it to many times.
   If you accidentally do this, and need to reset the buffer, use =Bumper.reset_buffer!(::AllocBuffer)=.
-+ =alloc(T, n...)= creates a =StrideArraysCore.PtrArray{T, length(n)}=. Bumper only depends on StrideArraysCore.jl, not the full StrideArrays,
-  so if you need some of the more advanced math functionality from =StrideArrays.jl= itself, you'll need to do =using StrideArrays= separately.
++ =alloc(T, n...)= creates a =StrideArraysCore.PtrArray{T, length(n)}=.
++ Bumper only depends on StrideArraysCore.jl, not the full StrideArrays, so if you need some of the more advanced
+  functionality from =StrideArrays.jl= itself, you'll need to do =using StrideArrays= separately.
 + Bumper.jl is experimental, and may have bugs. Let me know if you find any.
 
 ** Concurrency and parallelism
@@ -168,7 +169,6 @@ let b = default_buffer()
 end
 #+end_src
 
-#+RESULTS:
 : false
 
 This is dynamically scoped, so any nested function calls inside the =with_buffer= block will see a modified =default_buffer=.
