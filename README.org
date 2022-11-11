@@ -141,9 +141,6 @@ end
 
 : false
 
-Because of this, 
-
-
 Whereas if we don't spawn any tasks, we don't have to worry about unnecessary buffer creation:
 #+begin_src julia
 let b = default_buffer() # The default buffer on the main task
