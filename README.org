@@ -115,9 +115,9 @@ Running =default_buffer()= will give you the current task's default buffer, or y
 
 Some miscellaneous notes:
 + =@no_escape= blocks can be nested as much as you want (so long as the allocator has enough memory to store the objects you're using.
-+ =alloc(T, n...)= is \dynamically\ scoped, meaning that you can have deeply nested =alloc= calls inside a =@no_escape= block, and they'll
++ =alloc(T, n...)= is dynamically scoped, meaning that you can have deeply nested =alloc= calls inside a =@no_escape= block, and they'll
   still use the same default buffer, and be reset once the block ends.
-+ As mentioned previously, *Do not allow any memory which was initialized inside a =@no_escape= block to escape the block.* Doing can cause memory
++ As mentioned previously, *Do not allow any memory which was initialized inside a* =@no_escape= *block to escape the block.* Doing so can cause memory
   corruptuon.
 + You can use =alloc= outside of an =@no_escape= block, but that will leak memory from the buffer and cause it to overflow if you do it to many times.
   If you accidentally do this, and need to reset the buffer, use =Bumper.reset_buffer!(::AllocBuffer)=.
