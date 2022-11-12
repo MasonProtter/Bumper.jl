@@ -89,7 +89,7 @@ macro no_escape(ex)
         res = $(esc(ex))
         b.offset = offset
         if res isa PtrArray && !(allow_ptr_array_to_escape())
-            error("Tried to return a PtrArray from a `no_escape` block. If you really want to do this, evaluate   Bumper.allow_ptrarray_to_escape() = true")
+            error("Tried to return a PtrArray from a `no_escape` block. If you really want to do this, evaluate Bumper.allow_ptrarray_to_escape() = true")
         end
         res
     end
@@ -107,12 +107,13 @@ alloc(::Type{T}, s...) where {T} = PtrArray{T}(default_buffer(), s...)
 alloc(::Type{T}, buf::AllocBuffer, s...) where {T} = PtrArray{T}(buf, s...)
 
 struct NoThrow end
+
 function StrideArraysCore.PtrArray{T}(b::AllocBuffer, ::NoThrow, s::Vararg{Integer, N}) where {T, N}
     x, L = calc_strides_len(T, s)
     ptr = reinterpret(Ptr{T}, alloc_ptr_nothrow(b, L))
     PtrArray(ptr, s, x, all_dense(Val{N}()))
 end
-alloc_nothrow(::Type{T}, buf::AllocBuffer, s...) where {T} = PtrArray{T}(buf, NoThrow(), s...) 
 
+alloc_nothrow(::Type{T}, buf::AllocBuffer, s...) where {T} = PtrArray{T}(buf, NoThrow(), s...) 
 
 end
