@@ -5,12 +5,11 @@ export default_buffer, alloc_nothrow, @no_escape, alloc, with_buffer, AllocBuffe
 using StrideArraysCore
 using StrideArraysCore: calc_strides_len, all_dense
 
-warn_when_resizing_buffer() = true
-
 mutable struct AllocBuffer{Storage}
     buf::Storage
     offset::UInt
 end
+
 AllocBuffer(max_size::Int)  = AllocBuffer(Vector{UInt8}(undef, max_size), UInt(0))
 AllocBuffer(storage) = AllocBuffer(storage, UInt(0))
 
@@ -36,20 +35,6 @@ function alloc_ptr(b::AllocBuffer, sz::Int)
     b.offset += sz
     b.offset > sizeof(b.buf) && error("alloc: Buffer out of memory. Consider resizing it, or checking for memory leaks.")
     ptr
-end
-
-function alloc_ptr(b::AllocBuffer{<:Vector}, sz::Int)
-    ptr = pointer(b) + b.offset
-    b.offset += sz
-    b.offset > sizeof(b.buf) && auto_resize!(b, sz)
-    ptr
-end
-
-@noinline function auto_resize!(b::AllocBuffer, sz)
-    if warn_when_resizing_buffer()
-        @warn "alloc: Buffer memory limit reached, auto-resizing now. This may indicate a memory leak.\nTo disable these warnings, run `Bumper.warn_when_resizing_buffer() = false`."
-    end
-    resize!(b.buf, length(b.buf) + max(2sz, 1_000))
 end
 
 function alloc_ptr_nothrow(b::AllocBuffer, sz::Int)
