@@ -132,7 +132,7 @@ Some miscellaneous notes:
 + =alloc(T, n...)= is dynamically scoped, meaning that you can have deeply nested =alloc= calls inside a =@no_escape= block, and they'll
   still use the same default buffer, and be reset once the block ends.
 + As mentioned previously, *Do not allow any memory which was initialized inside a* =@no_escape= *block to escape the block.* Doing so can cause memory
-  corruptuon.
+  corruption.
 + You can use =alloc= outside of an =@no_escape= block, but that will leak memory from the buffer and cause it to overflow if you do it to many times.
   If you accidentally do this, and need to reset the buffer, use =Bumper.reset_buffer!(::AllocBuffer)=.
 + =alloc(T, n...)= creates a =StrideArraysCore.PtrArray{T, length(n)}=.
@@ -168,7 +168,7 @@ end
 : true
 
 Because of this, we don't have to worry about =@no_escape begin ... alloc() ... end= blocks on different threads or tasks interfering
-with eachother, so long as they are only operating on buffers local to that task or the =default_buffer()=.
+with each other, so long as they are only operating on buffers local to that task or the =default_buffer()=.
 
 ** Changing buffers
 
@@ -200,7 +200,7 @@ function foo(argc::Int, argv::Ptr{Ptr{UInt8}})
     n = argparse(Int, argv, 2)
     v = MallocArray{UInt8}(undef, 100) # 100 bytes of malloc'd memory to work with.
     buf = AllocBuffer(v) # create an AllocBuffer{MallocVector{UInt8}} because regular Vector doesn't work in this mode.
-   
+
     s = 0
     for i ∈ 1:10000
         @no_escape buf begin # <----- Note that we specify buf here.
@@ -210,7 +210,7 @@ function foo(argc::Int, argv::Ptr{Ptr{UInt8}})
             s += sum(x)
         end
     end
-    
+
     printf(c"The sum is: %d\n", s)
     free(v)
 end
