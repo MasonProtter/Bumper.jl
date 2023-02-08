@@ -3,7 +3,6 @@ module Bumper
 export default_buffer, alloc_nothrow, @no_escape, alloc, with_buffer, AllocBuffer, set_default_buffer_size!
 
 using StrideArraysCore
-using StrideArraysCore: calc_strides_len, all_dense
 
 mutable struct AllocBuffer{Storage}
     buf::Storage
@@ -83,9 +82,8 @@ end
 with_buffer(f, b::AllocBuffer) = task_local_storage(f, default_buffer_key, b)
 
 function StrideArraysCore.PtrArray{T}(b::AllocBuffer, s::Vararg{Integer, N}) where {T, N}
-    x, L = calc_strides_len(T, s)
-    ptr = reinterpret(Ptr{T}, alloc_ptr(b, L))
-    PtrArray(ptr, s, x, all_dense(Val{N}()))
+    ptr = reinterpret(Ptr{T}, alloc_ptr(b, prod(s) * sizeof(T)))
+    PtrArray(ptr, s)
 end
 
 alloc(::Type{T}, s...) where {T} = PtrArray{T}(default_buffer(), s...)
@@ -94,9 +92,8 @@ alloc(::Type{T}, buf::AllocBuffer, s...) where {T} = PtrArray{T}(buf, s...)
 struct NoThrow end
 
 function StrideArraysCore.PtrArray{T}(b::AllocBuffer, ::NoThrow, s::Vararg{Integer, N}) where {T, N}
-    x, L = calc_strides_len(T, s)
-    ptr = reinterpret(Ptr{T}, alloc_ptr_nothrow(b, L))
-    PtrArray(ptr, s, x, all_dense(Val{N}()))
+    ptr = reinterpret(Ptr{T}, alloc_nothrow(b, prod(s) * sizeof(T)))
+    PtrArray(ptr, s)
 end
 
 alloc_nothrow(::Type{T}, buf::AllocBuffer, s...) where {T} = PtrArray{T}(buf, NoThrow(), s...) 
