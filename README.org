@@ -17,9 +17,7 @@ considered memory un-safe.
 The simplest way to use Bumper is to rely on its default buffer implicitly like so:
 #+begin_src julia
 using Bumper
-using StrideArrays # Not necessary, but makes operations like broadcasting with Bumpers.jl faster.
-# Some people might get some errors during precompilation when doing `using StrideArrays` related
-# to Octavian.jl, you might have to do Pkg.add("Octavian@0.3.17")
+using StrideArrays # Not necessary, but makes operations like broadcasting with Bumper.jl faster.
 
 function f(x::Vector{Int})
     @no_escape begin
@@ -46,7 +44,6 @@ Let's compare the performance of =f= to the equivalent with an intermediate heap
 
 #+begin_src julia
 using BenchmarkTools
-#resize!(default_buffer().buf, 1000)
 @benchmark f(x) setup=(x = rand(1:10, 30))
 #+end_src
 

@@ -92,7 +92,7 @@ alloc(::Type{T}, buf::AllocBuffer, s...) where {T} = PtrArray{T}(buf, s...)
 struct NoThrow end
 
 function StrideArraysCore.PtrArray{T}(b::AllocBuffer, ::NoThrow, s::Vararg{Integer, N}) where {T, N}
-    ptr = reinterpret(Ptr{T}, alloc_nothrow(b, prod(s) * sizeof(T)))
+    ptr = reinterpret(Ptr{T}, alloc_ptr_nothrow(b, prod(s) * sizeof(T)))
     PtrArray(ptr, s)
 end
 
