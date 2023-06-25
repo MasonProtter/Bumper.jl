@@ -107,7 +107,7 @@ end
 function _no_escape_macro(b_ex, ex, __module__)
     @gensym b offset
     cleaned_ex = MacroTools.postwalk(ex) do x
-        Base.isexpr(x, :return) ? Expr(:block, :($b.offset = $offset), x) : x
+        MacroTools.isexpr(x, :return) ? Expr(:block, :($b.offset = $offset), x) : x
     end
     quote
         $b = $(esc(b_ex))
