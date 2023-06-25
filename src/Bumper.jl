@@ -39,7 +39,7 @@ end
     
 
 const default_buffer_key = gensym(:buffer)
-const buffer_size = Ref(Sys.total_physical_memory() - 1_000)
+const buffer_size = Ref(total_physical_memory() - 1_000)
 
 Base.pointer(b::AllocBuffer) = pointer(b.buf)
 
