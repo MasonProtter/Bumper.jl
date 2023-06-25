@@ -109,7 +109,8 @@ end
 : 
 :  Memory estimate: 0 bytes, allocs estimate: 0.
 
-Running =default_buffer()= will give you the current task's default buffer, or you can explicitly construct an =N= byte buffer by calling =AllocBuffer(N)=.
+Running =default_buffer()= will give you the current task's default buffer. You can explicitly construct an =N= byte buffer by calling =AllocBuffer(N)=,
+or you can create a buffer which can dynamically grow to be as big as your system memory with =AllocBuffer()=.
 
 E.g. if we want to do something that requires a very large buffer temporarily, we could do this:
 

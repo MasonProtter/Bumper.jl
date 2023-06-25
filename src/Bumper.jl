@@ -46,9 +46,10 @@ Base.pointer(b::AllocBuffer) = pointer(b.buf)
 
 AllocBuffer(max_size::Int)  = AllocBuffer(Vector{UInt8}(undef, max_size), UInt(0))
 AllocBuffer(storage) = AllocBuffer(storage, UInt(0))
+AllocBuffer() = AllocBuffer(mmap(Vector{UInt8}, buffer_size[]), UInt(0))
 
 function default_buffer()
-    get!(() -> AllocBuffer(mmap(Vector{UInt8}, buffer_size[])), task_local_storage(), default_buffer_key)::AllocBuffer{Vector{UInt8}}
+    get!(() -> AllocBuffer(), task_local_storage(), default_buffer_key)::AllocBuffer{Vector{UInt8}}
 end
 
 function set_default_buffer_size!(sz::Int)
