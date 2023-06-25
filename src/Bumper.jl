@@ -129,7 +129,7 @@ with_buffer(f, b::AllocBuffer) = task_local_storage(f, default_buffer_key, b)
 struct NoThrow end
 
 function StrideArraysCore.PtrArray{T}(b::AllocBuffer, s::Vararg{Integer, N}) where {T, N}
-    ptr = reinterpret(Ptr{T}, alloc_ptr(b, prod(s) * sizeof(T)))
+    ptr = convert(Ptr{T}, alloc_ptr(b, prod(s) * sizeof(T)))
     PtrArray(ptr, s)
 end
 
@@ -137,7 +137,7 @@ alloc(::Type{T}, s::Integer...) where {T} = PtrArray{T}(default_buffer(), s...)
 alloc(::Type{T}, buf::AllocBuffer, s::Integer...) where {T} = PtrArray{T}(buf, s...)
 
 function StrideArraysCore.PtrArray{T}(b::AllocBuffer, ::NoThrow, s::Vararg{Integer, N}) where {T, N}
-    ptr = reinterpret(Ptr{T}, alloc_ptr_nothrow(b, prod(s) * sizeof(T)))
+    ptr = convert(Ptr{T}, alloc_ptr_nothrow(b, prod(s) * sizeof(T)))
     PtrArray(ptr, s)
 end
 
