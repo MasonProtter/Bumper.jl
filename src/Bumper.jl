@@ -24,6 +24,7 @@ function alloc_nothrow end
 module Internals
 
 using StrideArraysCore, Mmap, MacroTools
+using MMap: mmap
 import Bumper: AllocBuffer,  alloc, default_buffer, allow_ptr_array_to_escape, set_default_buffer_size!, with_buffer, no_escape, @no_escape,
     alloc_nothrow
 
