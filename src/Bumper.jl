@@ -27,6 +27,17 @@ using StrideArraysCore, Mmap, MacroTools
 import Bumper: AllocBuffer,  alloc, default_buffer, allow_ptr_array_to_escape, set_default_buffer_size!, with_buffer, no_escape, @no_escape,
     alloc_nothrow
 
+function total_physical_memory()
+    @static if isdefined(Sys, :total_physical_memory)
+        Sys.total_physical_memory()
+    elseif isdefined(Sys, :physical_memory)
+        Sys.physical_memory()
+    else
+        Sys.total_memory()
+    end
+end
+    
+
 const default_buffer_key = gensym(:buffer)
 const buffer_size = Ref(Sys.total_physical_memory() - 1_000)
 
