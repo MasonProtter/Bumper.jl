@@ -1,6 +1,6 @@
 using Test, Bumper
 
-set_default_buffer_size!(1000)
+# set_default_buffer_size!(1000)
 
 function f(x::Vector{Int})
     @no_escape begin
@@ -22,11 +22,12 @@ end
     v = [1,2,3]
     b = AllocBuffer(100)
 
+    @test f(v) == 9
+    @test f(v, b) == 9
+    
     @test @allocated(f(v)) == 0
     @test @allocated(f(v, b)) == 0
 
-    @test f(v) == 9
-    @test f(v, b) == 9
 end
 
 @testset "tasks and buffer switching" begin
