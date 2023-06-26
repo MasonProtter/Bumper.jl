@@ -18,6 +18,12 @@ function f(x, buf::AllocBuffer)
     end
 end
 
+function returns_early()
+    @no_escape begin
+        return sum(alloc(Int, 10) .= 1)
+    end
+end
+
 @testset "basic" begin
     v = [1,2,3]
     b = AllocBuffer(100)
@@ -28,6 +34,10 @@ end
     @test @allocated(f(v)) == 0
     @test @allocated(f(v, b)) == 0
 
+    @test b.offset == 0
+
+    @test returns_early() == 10
+    @test default_buffer().offset == 0
 end
 
 @testset "tasks and buffer switching" begin

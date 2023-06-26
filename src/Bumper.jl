@@ -23,8 +23,7 @@ function alloc_nothrow end
 # ------------------------------------------------------
 module Internals
 
-using StrideArraysCore, Mmap, MacroTools
-using Mmap: mmap
+using StrideArraysCore, MacroTools
 import Bumper: AllocBuffer,  alloc, default_buffer, allow_ptr_array_to_escape, set_default_buffer_size!, with_buffer, no_escape, @no_escape,
     alloc_nothrow
 
@@ -37,7 +36,6 @@ function total_physical_memory()
         Sys.total_memory()
     end
 end
-    
 
 const default_buffer_key = gensym(:buffer)
 const buffer_size = Ref(total_physical_memory() - 1_000)
@@ -46,7 +44,7 @@ Base.pointer(b::AllocBuffer) = pointer(b.buf)
 
 AllocBuffer(max_size::Int)  = AllocBuffer(Vector{UInt8}(undef, max_size), UInt(0))
 AllocBuffer(storage) = AllocBuffer(storage, UInt(0))
-AllocBuffer() = AllocBuffer(mmap(Vector{UInt8}, buffer_size[]), UInt(0))
+AllocBuffer() = AllocBuffer(Vector{UInt8}(undef, buffer_size[]), UInt(0))
 
 function default_buffer()
     get!(() -> AllocBuffer(), task_local_storage(), default_buffer_key)::AllocBuffer{Vector{UInt8}}
@@ -54,8 +52,7 @@ end
 
 function set_default_buffer_size!(sz::Int)
     buffer_size[] = sz
-    b = default_buffer()
-    b.buf = mmap(Vector{UInt8}, buffer_size[])
+    resize!(default_buffer(), sz)
     GC.gc()
     sz
 end
@@ -108,14 +105,17 @@ end
 
 function _no_escape_macro(b_ex, ex, __module__)
     @gensym b offset
+    e_offset = esc(offset)
+    e_b = esc(b)
     cleaned_ex = MacroTools.postwalk(ex) do x
-        MacroTools.isexpr(x, :return) ? Expr(:block, :($b.offset = $offset), x) : x
+        @gensym rv
+        MacroTools.isexpr(x, :return) ? Expr(:block, :($rv = $(x.args[1])), :($b.offset = $offset), :(return $rv)) : x
     end
     quote
-        $b = $(esc(b_ex))
-        $offset = $b.offset
+        $e_b = $(esc(b_ex))
+        $e_offset = getfield($e_b, :offset)
         res = $(esc(cleaned_ex))
-        $b.offset = $offset
+        $e_b.offset = $e_offset
         if res isa PtrArray && !(allow_ptr_array_to_escape())
            esc_err()
         end
