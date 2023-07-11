@@ -38,7 +38,7 @@ function total_physical_memory()
 end
 
 const default_buffer_key = gensym(:buffer)
-const buffer_size = Ref(total_physical_memory() - 1_000)
+const buffer_size = Ref(total_physical_memory() ÷ 8)
 
 Base.pointer(b::AllocBuffer) = pointer(b.buf)
 
@@ -59,9 +59,9 @@ end
 
 function reset_buffer!(b::AllocBuffer = default_buffer())
     if b === default_buffer()
-        b.buf = mmap(Vector{UInt8}, buffer_size[])
+        b.buf = Vector{UInt8}(undef, buffer_size[])
+        GC.gc()
     end
-    GC.gc()
     b.offset = UInt(0)
 end
 
