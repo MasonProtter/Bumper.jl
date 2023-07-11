@@ -6,13 +6,12 @@
 Bumper.jl is an experimental package that aims to make working with bump allocators easy and safer (when used right).
 You can dynamically allocate memory to these bump allocators, and reset them at the end of a code block, just like
 Julia's default stack. Allocating to the a =AllocBuffer= with Bumper.jl can be just as efficient as stack allocation.
-
 The point of this is to not have to pay the hefty cost of intermediate allocations.
 
-Bumper.jl has a global default buffer, which starts off with =1MB= of capacity. You can change the default buffer size
-with =set_default_buffer_size!(nbytes)= where =nbytes= is the new size of the default buffer. If a buffer runs out of
-memory, it'll throw an error. Resizing a buffer which is in active use is not allowed, and should be
-considered memory un-safe. 
+Bumper.jl has a task-local default buffer, which can dynamically grow to be as large as your computer's physical memory pool.
+You can change the default buffer size with =set_default_buffer_size!(nbytes)= where =nbytes= is the new size of the
+default buffer. If a buffer runs out of memory, it'll throw an error. Resizing a buffer which is in active use is not allowed,
+and should be considered memory un-safe.
 
 The simplest way to use Bumper is to rely on its default buffer implicitly like so:
 #+begin_src julia
@@ -30,15 +29,13 @@ end
 f([1,2,3])
 #+end_src
 
-#+RESULTS:
 : 9
 
 
 When you use =@no_escape=, you are promising that any code enclosed in the supplied code block will not leak any memory
 created by =alloc=. That is, you are *only* allowed to do intermediate =alloc= allocations inside a =@no_escape= block,
-and the lifetime of those allocations is the block. This is important. Once a =@no_escape= block finishes running, it
+and the lifetime of those allocations is the block. **This is important.** Once a =@no_escape= block finishes running, it
 will reset its internal pointer to its position from before the block started.
-
 
 Let's compare the performance of =f= to the equivalent with an intermediate heap allocation:
 
@@ -48,13 +45,13 @@ using BenchmarkTools
 #+end_src
 
 : BenchmarkTools.Trial: 10000 samples with 997 evaluations.
-:  Range (min … max):  22.197 ns … 45.256 ns  ┊ GC (min … max): 0.00% … 0.00%
-:  Time  (median):     22.909 ns              ┊ GC (median):    0.00%
-:  Time  (mean ± σ):   23.060 ns ±  1.126 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+:  Range (min … max):  20.973 ns … 41.454 ns  ┊ GC (min … max): 0.00% … 0.00%
+:  Time  (median):     22.006 ns              ┊ GC (median):    0.00%
+:  Time  (mean ± σ):   22.212 ns ±  1.422 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
 : 
-:         ▆█▇▂                                                   
-:   ▂▂▂▃▅█████▇▅▄▄▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂▂▂▁▂▂▂▂▂▂▂▂▂▂▂▂▁▁▂▁▂▂▂▂▂ ▃
-:   22.2 ns         Histogram: frequency by time        27.4 ns <
+:       ▅█▇▃                                                     
+:   ▂▂▃▅████▆▄▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂▂▂▂▂▁▁▂▂▁▂▁▁▂▂ ▃
+:   21 ns           Histogram: frequency by time          31 ns <
 : 
 :  Memory estimate: 0 bytes, allocs estimate: 0.
 
@@ -102,27 +99,28 @@ end
 #+end_src
 
 : BenchmarkTools.Trial: 10000 samples with 999 evaluations.
-:  Range (min … max):  10.119 ns … 23.664 ns  ┊ GC (min … max): 0.00% … 0.00%
-:  Time  (median):     10.340 ns              ┊ GC (median):    0.00%
-:  Time  (mean ± σ):   10.374 ns ±  0.456 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+:  Range (min … max):  10.120 ns … 27.037 ns  ┊ GC (min … max): 0.00% … 0.00%
+:  Time  (median):     10.521 ns              ┊ GC (median):    0.00%
+:  Time  (mean ± σ):   10.583 ns ±  0.574 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
 : 
-:   ▁ ▁ ▂▃▄▇▄█▅▆▁                                               ▂
-:   █▄████████████▆▆▁▁▃▃▁▄▃▁▁▄▅▃▁▁▁▃▁▄▃▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▃▃▃▄▃▃▁▃ █
-:   10.1 ns      Histogram: log(frequency) by time      11.5 ns <
+:         ▄█                                                     
+:   ▂▂▃▅▅▅██▅▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂▂▁▂▁▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂ ▂
+:   10.1 ns         Histogram: frequency by time        13.6 ns <
 : 
 :  Memory estimate: 0 bytes, allocs estimate: 0.
 
-Running =default_buffer()= will give you the current task's default buffer, or you can explicitly construct an =N= byte buffer by calling =AllocBuffer(N)=.
+Running =default_buffer()= will give you the current task's default buffer. You can explicitly construct an =N= byte buffer by calling =AllocBuffer(N)=,
+or you can create a buffer which can dynamically grow to be as big as your system memory with =AllocBuffer()=.
 
 E.g. if we want to do something that requires a very large buffer temporarily, we could do this:
+
 #+begin_src julia
 let x = rand(1:100, 10_000_000), buf = AllocBuffer(2*sizeof(x))
     f(x, buf)
 end
 #+end_src
 
-: 515035101
-
+: 515000435
 
 Some miscellaneous notes:
 + =@no_escape= blocks can be nested as much as you want (so long as the allocator has enough memory to store the objects you're using.
@@ -130,8 +128,8 @@ Some miscellaneous notes:
   still use the same default buffer, and be reset once the block ends.
 + As mentioned previously, *Do not allow any memory which was initialized inside a* =@no_escape= *block to escape the block.* Doing so can cause memory
   corruption.
-+ You can use =alloc= outside of an =@no_escape= block, but that will leak memory from the buffer and cause it to overflow if you do it to many times.
-  If you accidentally do this, and need to reset the buffer, use =Bumper.reset_buffer!(::AllocBuffer)=.
++ You can use =alloc= outside of an =@no_escape= block, but that will leak memory from the buffer and cause it to overflow if you do it too many times.
+  If you accidentally do this, and need to reset the buffer, use =Bumper.reset_buffer!=.
 + =alloc(T, n...)= creates a =StrideArraysCore.PtrArray{T, length(n)}=.
 + In order to be lightweight, Bumper.jl only depends on StrideArraysCore.jl, not the full [[https://github.com/JuliaSIMD/StrideArrays.jl][StrideArrays.jl]], so if you need some of
   the more advanced functionality from StrideArrays.jl itself, you'll need to do =using StrideArrays= separately.
@@ -139,8 +137,8 @@ Some miscellaneous notes:
 
 ** Concurrency and parallelism
 
-Every task has its own *independent* default buffer which inherit the size of their parent's task buffer. A task's buffer is only created
-if it is used, so this does not slow down the spawning of Julia tasks in general. Here's a demo that the default buffers are different:
+Every task has its own *independent* default buffer. A task's buffer is only created if it is used, so this does not slow down the
+spawning of Julia tasks in general. Here's a demo that the default buffers are different:
 
 #+begin_src julia
 using Bumper
@@ -152,12 +150,11 @@ end
 
 : false
 
-
 Whereas if we don't spawn any tasks, we don't have to worry about unnecessary buffer creation:
 
 #+begin_src julia
-let b = default_buffer() # The default buffer on the main task
-    b2 = default_buffer() # Get the default buffer on an asychronous task
+let b = default_buffer()
+    b2 = default_buffer() 
     b2 === b
 end
 #+end_src
@@ -180,7 +177,6 @@ end
 #+end_src
 
 : false
-
 
 This is dynamically scoped, so any nested function calls inside the =with_buffer= block will see a modified =default_buffer=.
 
