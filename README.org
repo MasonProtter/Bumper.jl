@@ -8,10 +8,10 @@ You can dynamically allocate memory to these bump allocators, and reset them at 
 Julia's default stack. Allocating to the a =AllocBuffer= with Bumper.jl can be just as efficient as stack allocation.
 The point of this is to not have to pay the hefty cost of intermediate allocations.
 
-Bumper.jl has a task-local default buffer, which can dynamically grow to be as large as your computer's physical memory pool.
-You can change the default buffer size with =set_default_buffer_size!(nbytes)= where =nbytes= is the new size of the
-default buffer. If a buffer runs out of memory, it'll throw an error. Resizing a buffer which is in active use is not allowed,
-and should be considered memory un-safe.
+Bumper.jl has a task-local default buffer, which can dynamically grow to be one eigth the size of your computer's
+physical memory pool. You can change the default buffer size with =set_default_buffer_size!(nbytes)= where =nbytes=
+is the new size of the default buffer. If a buffer runs out of memory, it'll throw an error. Resizing a buffer which
+is in active use is not allowed, and should be considered memory unsafe.
 
 The simplest way to use Bumper is to rely on its default buffer implicitly like so:
 #+begin_src julia
@@ -126,6 +126,7 @@ Some miscellaneous notes:
 + =@no_escape= blocks can be nested as much as you want (so long as the allocator has enough memory to store the objects you're using.
 + =alloc(T, n...)= is dynamically scoped, meaning that you can have deeply nested =alloc= calls inside a =@no_escape= block, and they'll
   still use the same default buffer, and be reset once the block ends.
++ Bumper.jl only supports =isbits= types. You cannot use it for allocating vectors of mutable, abstract, or other pointer-backed objects. 
 + As mentioned previously, *Do not allow any memory which was initialized inside a* =@no_escape= *block to escape the block.* Doing so can cause memory
   corruption.
 + You can use =alloc= outside of an =@no_escape= block, but that will leak memory from the buffer and cause it to overflow if you do it too many times.
