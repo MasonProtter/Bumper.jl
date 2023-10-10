@@ -1,7 +1,7 @@
 name = "Bumper"
 uuid = "8ce10254-0962-460f-a3d8-1f77fea1446e"
 authors = ["MasonProtter <mason.protter@icloud.com>"]
-version = "0.3.0"
+version = "0.3.1"
 
 [deps]
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
