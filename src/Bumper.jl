@@ -79,7 +79,7 @@ function alloc_ptr_nothrow(b::AllocBuffer, sz::Int)
 end
 
 
-@noinline function oom_error()
+@noinline function oom_error(b)
     error("alloc: Buffer out of memory. This might be a sign of a memory leak.
 Use Bumper.reset_buffer!() or Bumper.reset_buffer!(b::AllocBuffer) to reclaim its memory.")
 end
