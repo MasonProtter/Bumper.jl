@@ -3,7 +3,7 @@ module Bumper
 export AllocBuffer, alloc, alloc_nothrow, default_buffer, @no_escape, with_buffer
 
 
-## Public
+## Public API
 # ------------------------------------------------------
 mutable struct AllocBuffer{Storage}
     buf::Storage
@@ -18,14 +18,15 @@ function with_buffer end
 function set_default_buffer_size! end
 allow_ptr_array_to_escape() = false
 function alloc_nothrow end
+function reset_buffer! end
 
 ## Private
 # ------------------------------------------------------
 module Internals
 
 using StrideArraysCore, MacroTools
-import Bumper: AllocBuffer,  alloc, default_buffer, allow_ptr_array_to_escape, set_default_buffer_size!, with_buffer, no_escape, @no_escape,
-    alloc_nothrow
+import Bumper: AllocBuffer,  alloc, default_buffer, allow_ptr_array_to_escape, set_default_buffer_size!,
+    with_buffer, no_escape, @no_escape, alloc_nothrow, reset_buffer!
 
 function total_physical_memory()
     @static if isdefined(Sys, :total_physical_memory)
@@ -107,14 +108,19 @@ function _no_escape_macro(b_ex, ex, __module__)
     @gensym b offset
     e_offset = esc(offset)
     e_b = esc(b)
-    cleaned_ex = MacroTools.postwalk(ex) do x
+    # We need to macroexpand the code in case the user has a macro in the body which has return or goto in it
+    MacroTools.postwalk(macroexpand(__module__, ex)) do x
         @gensym rv
-        MacroTools.isexpr(x, :return) ? Expr(:block, :($rv = $(x.args[1])), :($b.offset = $offset), :(return $rv)) : x
+        if MacroTools.isexpr(x, :return) 
+            error("The `return` keyword is not allowed to be used inside the `@no_escape` macro")
+        elseif MacroTools.isexpr(x, :symbolicgoto) # && (x.args[1] ∉ enclosed_labels)
+            error("`@goto` statements are not allowed to be used inside the `@no_escape` macro")
+        end
     end
     quote
         $e_b = $(esc(b_ex))
         $e_offset = getfield($e_b, :offset)
-        res = $(esc(cleaned_ex))
+        res = $(esc(ex))
         $e_b.offset = $e_offset
         if res isa PtrArray && !(allow_ptr_array_to_escape())
            esc_err()

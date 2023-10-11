@@ -3,10 +3,11 @@
 :END:
 * Bumper.jl
 
-Bumper.jl is an experimental package that aims to make working with bump allocators easy and safer (when used right).
-You can dynamically allocate memory to these bump allocators, and reset them at the end of a code block, just like
-Julia's default stack. Allocating to the a =AllocBuffer= with Bumper.jl can be just as efficient as stack allocation.
-The point of this is to not have to pay the hefty cost of intermediate allocations.
+Bumper.jl is an experimental package that aims to make working with bump allocators (also known as arena allocators)
+easy and safer (though not totally safe!). You can dynamically allocate memory to these bump allocators, and reset
+them at the end of a code block, just like Julia's default stack. Allocating to the a =AllocBuffer= with Bumper.jl
+can be just as efficient as stack allocation. The point of this is to not have to pay the hefty cost of
+intermediate allocations.
 
 Bumper.jl has a task-local default buffer, which can dynamically grow to be one eigth the size of your computer's
 physical memory pool. You can change the default buffer size with =set_default_buffer_size!(nbytes)= where =nbytes=
@@ -124,17 +125,16 @@ end
 
 Some miscellaneous notes:
 + =@no_escape= blocks can be nested as much as you want (so long as the allocator has enough memory to store the objects you're using.
-+ =alloc(T, n...)= is dynamically scoped, meaning that you can have deeply nested =alloc= calls inside a =@no_escape= block, and they'll
-  still use the same default buffer, and be reset once the block ends.
-+ Bumper.jl only supports =isbits= types. You cannot use it for allocating vectors of mutable, abstract, or other pointer-backed objects. 
-+ As mentioned previously, *Do not allow any memory which was initialized inside a* =@no_escape= *block to escape the block.* Doing so can cause memory
-  corruption.
++ =alloc(T, n...)= is dynamically scoped, meaning that you can have deeply nested =alloc= calls inside a =@no_escape= block, and they'll still use the same default buffer, and be reset once the block ends.
++ Bumper.jl only supports =isbits= types. You cannot use it for allocating vectors containing mutable, abstract, or other pointer-backed objects. 
++ As mentioned previously, *Do not allow any array which was initialized inside a* =@no_escape= *block to escape the block.* Doing so will cause incorrect results.
 + You can use =alloc= outside of an =@no_escape= block, but that will leak memory from the buffer and cause it to overflow if you do it too many times.
   If you accidentally do this, and need to reset the buffer, use =Bumper.reset_buffer!=.
 + =alloc(T, n...)= creates a =StrideArraysCore.PtrArray{T, length(n)}=.
-+ In order to be lightweight, Bumper.jl only depends on StrideArraysCore.jl, not the full [[https://github.com/JuliaSIMD/StrideArrays.jl][StrideArrays.jl]], so if you need some of
-  the more advanced functionality from StrideArrays.jl itself, you'll need to do =using StrideArrays= separately.
-+ Bumper.jl is experimental, and may have bugs. Let me know if you find any. Contributing to the test suite would be greatly appreciated.
++ In order to be lightweight, Bumper.jl only depends on [[https://github.com/JuliaSIMD/StrideArraysCore.jl][StrideArraysCore.jl]], not the full [[https://github.com/JuliaSIMD/StrideArrays.jl][StrideArrays.jl]], so if you need some of the more advanced functionality from StrideArrays.jl itself, you'll need to do =using StrideArrays= separately.
++ You are not allowed to use =return= or =@goto= inside a =@no_escape= block, since this could compromise the cleanup it performs after the block finishes.
++ If you use Bumper.jl, please consider submitting a sample of your use-case so I can include it in the test suite.
++ Bumper.jl is experimental, and may have bugs. Let me know if you find any.
 
 ** Concurrency and parallelism
 
