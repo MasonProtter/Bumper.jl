@@ -234,7 +234,7 @@ This is dynamically scoped, so any nested function calls inside the =with_buffer
 @doc @alloc
 #+end_src
 
-#+begin_export markdown
+#+begin_src markdown
 ```
 @alloc(T, n::Int...) -> PtrArray{T, length(n)}
 ```
@@ -242,13 +242,13 @@ This is dynamically scoped, so any nested function calls inside the =with_buffer
 This can only be used inside a `@no_escape` block to allocate a `PtrArray` whose dimensions are determined by `n`. The memory used to allocate this array will come from the buffer associated with the enclosing `@no_escape` block.
 
 Do not allow any references to these arrays to escape the enclosing `@no_escape` block, and do not pass these arrays to concurrent tasks unless that task is guaranteed to terminate before the `@no_escape` block ends. Any array allocated in this way which is found outside of it's parent `@no_escape` block has undefined contents.
-#+end_export
+#+end_src
 
 #+begin_src julia
 @doc @no_escape
 #+end_src
 
-#+begin_export markdown
+#+begin_src markdown
 ```
 @no_escape([buf=default_buffer()], expr)
 ```
@@ -271,7 +271,7 @@ function f(x::Vector{Int})
     end
 end
 ```
-#+end_export
+#+end_src
 
 #+begin_src julia
 @doc AllocBuffer
