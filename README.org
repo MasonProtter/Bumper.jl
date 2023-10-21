@@ -230,6 +230,8 @@ This is dynamically scoped, so any nested function calls inside the =with_buffer
 #+HTML: <details><summary>Click me!</summary>
 #+HTML: <p>
 
+Sorry, I haven't found a better way to make these display yet
+
 #+begin_src julia
 @doc @alloc
 #+end_src
@@ -277,7 +279,7 @@ end
 @doc AllocBuffer
 #+end_src
 
-#+begin_export markdown
+#+begin_src markdown
 ```
 AllocBuffer(max_size::Int) -> AllocBuffer{Vector{UInt8}}
 ```
@@ -301,23 +303,23 @@ AllocBuffer{StorageType}
 ```
 
 This is a single bump allocator that could be used to store some memory of type `StorageType`. Do not manually manipulate the fields of an AllocBuffer that is in use.
-#+end_export
+#+end_src
 
 #+begin_src julia
 @doc default_buffer()
 #+end_src
 
-#+begin_export markdown
+#+begin_src markdown
 default_buffer() -> AllocBuffer{Vector{UInt8}}
 
 Return the current task-local default buffer, if one does not exist in the current task, it will create one.
-#+end_export
+#+end_src
 
 #+begin_src julia
 @doc with_buffer()
 #+end_src
 
-#+begin_export markdown
+#+begin_src markdown
 ```
 with_buffer(f, buf::AllocBuffer)
 ```
@@ -338,32 +340,32 @@ default_buffer() == b2 = true
 default_buffer() == b1 = true
 true
 ```
-#+end_export
+#+end_src
 
 #+begin_src julia
 @doc Bumper.set_default_buffer_size!
 #+end_src
 
-#+begin_export markdown
+#+begin_src markdown
 ```
 Bumper.set_default_buffer_size!(n::Int)
 ```
 
 Change the size that future `AllocBuffer()`s will be created with.
-#+end_export
+#+end_src
 
 
 #+begin_src julia
 @doc Bumper.reset_buffer!
 #+end_src
 
-#+begin_export markdown
+#+begin_src markdown
 ```
 Bumper.reset_buffer!(buf::AllocBuffer=default_buffer())
 ```
 
 This resets an AllocBuffer's offset to zero, effectively making it like a freshly allocated buffer. This might be necessary to use if you accidentally over-allocate a buffer.
-#+end_export
+#+end_src
 
 
 
