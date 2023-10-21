@@ -55,11 +55,16 @@ end
     end
 
     let b1 = default_buffer()
-        b2 = AllocBuffer(Vector{Int}(undef, 100))
+        b2 = AllocBuffer(Vector{UInt8}(undef, 100))
         with_buffer(b2) do
             @test default_buffer() == b2
         end
         @test default_buffer() == b1
+    end
+    let b2 = AllocBuffer(Vector{Int}(undef, 100))
+        with_buffer(b) do
+            @test_throws Exception default_buffer()
+        end
     end
 
     @test_throws Exception Bumper.alloc(Int, b, 100000)
@@ -71,9 +76,8 @@ end
 
     @no_escape b begin
         v = @alloc_nothrow(Int, 100000)
-        @test 8*length(v) > length(b.storage)
+        @test 8*length(v) > length(b.buf)
     end
-    
 end
 
 macro sneaky_return(ex)

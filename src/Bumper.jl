@@ -88,9 +88,9 @@ function alloc end
 
 
 """
-    with_buffer(f, buf::AllocBuffer)
+    with_buffer(f, buf::AllocBuffer{Vector{UInt8}})
 
-Execute the function `f()` in a context where `default_buffer()` will return `buf` instead of the normal `default_buffer`.
+Execute the function `f()` in a context where `default_buffer()` will return `buf` instead of the normal `default_buffer`. This currently only works with `AllocBuffer{Vector{UInt8}}`.
 
 Example:
 
@@ -281,7 +281,7 @@ end
 @noinline esc_err() =
     error("Tried to return a PtrArray from a `no_escape` block. If you really want to do this, evaluate Bumper.allow_ptrarray_to_escape() = true")
 
-with_buffer(f, b::AllocBuffer) = task_local_storage(f, default_buffer_key, b)
+with_buffer(f, b::AllocBuffer{Vector{UInt}}) = task_local_storage(f, default_buffer_key, b)
 
 struct NoThrow end
 

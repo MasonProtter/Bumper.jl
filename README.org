@@ -246,6 +246,8 @@ This can only be used inside a `@no_escape` block to allocate a `PtrArray` whose
 Do not allow any references to these arrays to escape the enclosing `@no_escape` block, and do not pass these arrays to concurrent tasks unless that task is guaranteed to terminate before the `@no_escape` block ends. Any array allocated in this way which is found outside of it's parent `@no_escape` block has undefined contents.
 #+end_src
 
+__________________
+
 #+begin_src julia
 @doc @no_escape
 #+end_src
@@ -274,6 +276,8 @@ function f(x::Vector{Int})
 end
 ```
 #+end_src
+
+__________________
 
 #+begin_src julia
 @doc AllocBuffer
@@ -305,6 +309,8 @@ AllocBuffer{StorageType}
 This is a single bump allocator that could be used to store some memory of type `StorageType`. Do not manually manipulate the fields of an AllocBuffer that is in use.
 #+end_src
 
+__________________
+
 #+begin_src julia
 @doc default_buffer()
 #+end_src
@@ -315,16 +321,18 @@ default_buffer() -> AllocBuffer{Vector{UInt8}}
 Return the current task-local default buffer, if one does not exist in the current task, it will create one.
 #+end_src
 
+__________________
+
 #+begin_src julia
 @doc with_buffer()
 #+end_src
 
 #+begin_src markdown
 ```
-with_buffer(f, buf::AllocBuffer)
+with_buffer(f, buf::AllocBuffer{Vector{UInt8}})
 ```
 
-Execute the function `f()` in a context where `default_buffer()` will return `buf` instead of the normal `default_buffer`.
+Execute the function `f()` in a context where `default_buffer()` will return `buf` instead of the normal `default_buffer`. This currently only works with `AllocBuffer{Vector{UInt8}}`.
 
 Example:
 
@@ -341,6 +349,7 @@ default_buffer() == b1 = true
 true
 ```
 #+end_src
+__________________
 
 #+begin_src julia
 @doc Bumper.set_default_buffer_size!
@@ -353,7 +362,7 @@ Bumper.set_default_buffer_size!(n::Int)
 
 Change the size that future `AllocBuffer()`s will be created with.
 #+end_src
-
+__________________
 
 #+begin_src julia
 @doc Bumper.reset_buffer!
