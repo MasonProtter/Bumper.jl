@@ -133,7 +133,7 @@ module Internals
 
 using StrideArraysCore
 import Bumper: AllocBuffer,  alloc, default_buffer, allow_ptr_array_to_escape, set_default_buffer_size!,
-    with_buffer, no_escape, @no_escape, alloc_nothrow, reset_buffer!
+    with_buffer, @no_escape, alloc_nothrow, reset_buffer!
 
 function total_physical_memory()
     @static if isdefined(Sys, :total_physical_memory)
@@ -281,7 +281,7 @@ end
 @noinline esc_err() =
     error("Tried to return a PtrArray from a `no_escape` block. If you really want to do this, evaluate Bumper.allow_ptrarray_to_escape() = true")
 
-with_buffer(f, b::AllocBuffer{Vector{UInt}}) = task_local_storage(f, default_buffer_key, b)
+with_buffer(f, b::AllocBuffer{Vector{UInt8}}) = task_local_storage(f, default_buffer_key, b)
 
 struct NoThrow end
 

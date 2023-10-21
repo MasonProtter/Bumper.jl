@@ -62,9 +62,9 @@ end
         @test default_buffer() == b1
     end
     let b2 = AllocBuffer(Vector{Int}(undef, 100))
-        with_buffer(b) do
-            @test_throws Exception default_buffer()
-        end
+        @test_throws MethodError with_buffer(b2) do
+            default_buffer()
+        end 
     end
 
     @test_throws Exception Bumper.alloc(Int, b, 100000)
