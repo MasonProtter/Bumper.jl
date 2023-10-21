@@ -9,6 +9,10 @@ them at the end of a code block, just like Julia's default stack. Allocating to 
 can be just as efficient as stack allocation. The point of this is to not have to pay the hefty cost of
 intermediate allocations.
 
+** Basics
+#+HTML: <details><summary>Click me!</summary>
+#+HTML: <p>
+
 Bumper.jl has a task-local default buffer, which can dynamically grow to be one eigth the size of your computer's
 physical memory pool. You can change the default buffer size with =set_default_buffer_size!(nbytes)= where =nbytes=
 is the new size of the default buffer. If a buffer runs out of memory, it'll throw an error. Resizing a buffer which
@@ -20,8 +24,11 @@ using Bumper
 using StrideArrays # Not necessary, but makes operations like broadcasting with Bumper.jl faster.
 
 function f(x::Vector{Int})
+    # Set up a scope where memory may be allocated, and does not escape:
     @no_escape begin
-        y = alloc(Int, length(x)) # This will allocate a `PtrArray` from StrideArraysCore.jl using memory from the default buffer.
+        # Allocate a `PtrArray` from StrideArraysCore.jl using memory from the default buffer.
+        y = @alloc(Int, length(x))
+        # Now do some stuff with that vector:
         y .= x .+ 1
         sum(y)
     end
@@ -32,9 +39,8 @@ f([1,2,3])
 
 : 9
 
-
 When you use =@no_escape=, you are promising that any code enclosed in the supplied code block will not leak any memory
-created by =alloc=. That is, you are *only* allowed to do intermediate =alloc= allocations inside a =@no_escape= block,
+created by =@alloc=. That is, you are *only* allowed to do intermediate =@alloc= allocations inside a =@no_escape= block,
 and the lifetime of those allocations is the block. **This is important.** Once a =@no_escape= block finishes running, it
 will reset its internal pointer to its position from before the block started.
 
@@ -45,14 +51,14 @@ using BenchmarkTools
 @benchmark f(x) setup=(x = rand(1:10, 30))
 #+end_src
 
-: BenchmarkTools.Trial: 10000 samples with 997 evaluations.
-:  Range (min … max):  20.973 ns … 41.454 ns  ┊ GC (min … max): 0.00% … 0.00%
-:  Time  (median):     22.006 ns              ┊ GC (median):    0.00%
-:  Time  (mean ± σ):   22.212 ns ±  1.422 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+: BenchmarkTools.Trial: 10000 samples with 998 evaluations.
+:  Range (min … max):  14.676 ns … 30.970 ns  ┊ GC (min … max): 0.00% … 0.00%
+:  Time  (median):     15.219 ns              ┊ GC (median):    0.00%
+:  Time  (mean ± σ):   15.367 ns ±  1.246 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
 : 
-:       ▅█▇▃                                                     
-:   ▂▂▃▅████▆▄▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂▂▂▂▂▁▁▂▂▁▂▁▁▂▂ ▃
-:   21 ns           Histogram: frequency by time          31 ns <
+:     █▆▁▁▆▇▂                                                    
+:   ▂▆███████▅▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▁▂▂▂▂▂▁▁▁▂▂ ▃
+:   14.7 ns         Histogram: frequency by time          20 ns <
 : 
 :  Memory estimate: 0 bytes, allocs estimate: 0.
 
@@ -60,58 +66,65 @@ and
 
 #+begin_src julia
 function g(x::Vector{Int})
-    y = StrideArray{Int}(undef, length(x))
-    y .= x .+ 1
+    y = x .+ 1
     sum(y)
 end
 
 @benchmark g(x) setup=(x = rand(1:10, 30))
 #+end_src
 
-: BenchmarkTools.Trial: 10000 samples with 995 evaluations.
-:  Range (min … max):  30.975 ns …   4.676 μs  ┊ GC (min … max):  0.00% … 98.25%
-:  Time  (median):     74.342 ns               ┊ GC (median):     0.00%
-:  Time  (mean ± σ):   72.151 ns ± 228.449 ns  ┊ GC (mean ± σ):  17.50% ±  5.47%
+#+RESULTS:
+: BenchmarkTools.Trial: 10000 samples with 994 evaluations.
+:  Range (min … max):  33.705 ns … 898.148 ns  ┊ GC (min … max): 0.00% … 89.85%
+:  Time  (median):     37.325 ns               ┊ GC (median):    0.00%
+:  Time  (mean ± σ):   41.774 ns ±  46.284 ns  ┊ GC (mean ± σ):  8.75% ±  7.42%
 : 
-:    █▂                                                           
-:   ▂██▄▄▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▁▂▂▁▁▁▁▂▂▄▅▅▄▄▄▅▆▅▄▄▃▃▃▂▂▂▂▂▂▂▂▂▂▂▁▂▂ ▃
-:   31 ns           Histogram: frequency by time          111 ns <
+:      ▁▃▇█▇▆▅▃▂▁▁▁▁                                             ▂
+:   ▇▆███████████████▇▇▆▇▆▆▆▆▅▄▅▄▅▄▅▄▅▅▃▄▃▃▄▄▇████▆▅▄▄▅▄▁▄▃▄▄▁▄▄ █
+:   33.7 ns       Histogram: log(frequency) by time        65 ns <
 : 
 :  Memory estimate: 304 bytes, allocs estimate: 1.
 
 Nice speedup!
 
-However, we can actually do better if we're okay with manually manipulating some state. The way I invoked =@no_escape= and =alloc= implicitly used
-the default buffer, and fetching that default buffer is not as fast as using a =const= global variable, because Bumper.jl is working to protect
+However, we can actually go a little faster better if we're okay with manually passing around a buffer.
+The way I invoked =@no_escape= and =alloc= implicitly used the default buffer, and fetching that
+default buffer is not as fast as using a =const= global variable, because Bumper.jl is working to protect
 you against concurrency bugs (more on that in the next section).
 
-If we provide the buffer to =f= explicitly, these safety features aren't needed:
+If we provide the buffer to =f= explicitly, 
 #+begin_src julia
 function f(x, buf::AllocBuffer)
     @no_escape buf begin # <----- Notice I specified buf here
-        y = alloc(Int, buf, length(x)) # <----- and here
+        y = @alloc(Int, length(x)) 
         y .= x .+ 1
         sum(y)
     end
 end
 
-@benchmark f(x, buf) setup=(x = rand(1:10, 30);
-                            buf = default_buffer())
+@benchmark f(x, buf) setup = begin
+    x   = rand(1:10, 30)
+    buf = default_buffer()
+end
 #+end_src
 
 : BenchmarkTools.Trial: 10000 samples with 999 evaluations.
-:  Range (min … max):  10.120 ns … 27.037 ns  ┊ GC (min … max): 0.00% … 0.00%
-:  Time  (median):     10.521 ns              ┊ GC (median):    0.00%
-:  Time  (mean ± σ):   10.583 ns ±  0.574 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+:  Range (min … max):  10.129 ns … 24.942 ns  ┊ GC (min … max): 0.00% … 0.00%
+:  Time  (median):     10.259 ns              ┊ GC (median):    0.00%
+:  Time  (mean ± σ):   10.296 ns ±  0.429 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
 : 
-:         ▄█                                                     
-:   ▂▂▃▅▅▅██▅▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂▂▁▂▁▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂ ▂
-:   10.1 ns         Histogram: frequency by time        13.6 ns <
+:   ▁█           ▆                                               
+:   ██▃▄▅▃▃▃▄▄▃▃▆█▃▃▄▂▂▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁▂▁▁▁▂▁▁▂▁▁▁▂▂▂▁▁▁▁▁▂▁▂▂▁▂ ▃
+:   10.1 ns         Histogram: frequency by time        11.2 ns <
 : 
 :  Memory estimate: 0 bytes, allocs estimate: 0.
 
-Running =default_buffer()= will give you the current task's default buffer. You can explicitly construct an =N= byte buffer by calling =AllocBuffer(N)=,
-or you can create a buffer which can dynamically grow to be as big as your system memory with =AllocBuffer()=.
+If you manually specify a buffer like this, it is your responsibility to ensure that you don't have
+multiple concurrent tasks using that buffer at the same time.
+
+Running =default_buffer()= will give you the current task's default buffer. You can explicitly construct
+your own =N= byte buffer by calling =AllocBuffer(N)=, or you can create a buffer which can dynamically
+grow to be as big as your 1/8th of your system memory with =AllocBuffer()=.
 
 E.g. if we want to do something that requires a very large buffer temporarily, we could do this:
 
@@ -123,23 +136,42 @@ end
 
 : 515000435
 
-Some miscellaneous notes:
+#+HTML: </details>
+#+HTML: </p>
+
+** Important notes
+
+#+HTML: <details><summary>Click me!</summary>
+#+HTML: <p>
+
 + =@no_escape= blocks can be nested as much as you want (so long as the allocator has enough memory to store the objects you're using.
-+ =alloc(T, n...)= is dynamically scoped, meaning that you can have deeply nested =alloc= calls inside a =@no_escape= block, and they'll still use the same default buffer, and be reset once the block ends.
-+ Bumper.jl only supports =isbits= types. You cannot use it for allocating vectors containing mutable, abstract, or other pointer-backed objects. 
-+ As mentioned previously, *Do not allow any array which was initialized inside a* =@no_escape= *block to escape the block.* Doing so will cause incorrect results.
-+ You can use =alloc= outside of an =@no_escape= block, but that will leak memory from the buffer and cause it to overflow if you do it too many times.
-  If you accidentally do this, and need to reset the buffer, use =Bumper.reset_buffer!=.
-+ =alloc(T, n...)= creates a =StrideArraysCore.PtrArray{T, length(n)}=.
++ The =@alloc= macro can only be used directly inside of a =@no_escape= block, and it will always use the buffer that the
+  corresponding =@no_escape= block uses.
++ If for some reason you need to be able to use =@alloc= outside of the scope of the =@no_escape= block, there is a
+  function  =Bumper.alloc(T, buf, n...)= which takes in an explicit buffer =buf= and uses it to allocate an array of
+  element type =T=, and dimensions =n...=. Using this is not as safe as =@alloc= and not recommended.
++ Bumper.jl only supports =isbits= types. You cannot use it for allocating vectors containing mutable, abstract, or
+  other pointer-backed objects. 
++ As mentioned previously, *Do not allow any array which was initialized inside a* =@no_escape=
+  *block to escape the block.* Doing so will cause incorrect results.
++ If you accidentally overblow a buffer, via e.g. a memory leak, you need to reset the buffer. Use
+  =Bumper.reset_buffer!= to do this.
 + In order to be lightweight, Bumper.jl only depends on [[https://github.com/JuliaSIMD/StrideArraysCore.jl][StrideArraysCore.jl]], not the full [[https://github.com/JuliaSIMD/StrideArrays.jl][StrideArrays.jl]], so if you need some of the more advanced functionality from StrideArrays.jl itself, you'll need to do =using StrideArrays= separately.
 + You are not allowed to use =return= or =@goto= inside a =@no_escape= block, since this could compromise the cleanup it performs after the block finishes.
 + If you use Bumper.jl, please consider submitting a sample of your use-case so I can include it in the test suite.
 + Bumper.jl is experimental, and may have bugs. Let me know if you find any.
 
+#+HTML: </details>
+#+HTML: </p>
+
 ** Concurrency and parallelism
 
-Every task has its own *independent* default buffer. A task's buffer is only created if it is used, so this does not slow down the
-spawning of Julia tasks in general. Here's a demo that the default buffers are different:
+#+HTML: <details><summary>Click me!</summary>
+#+HTML: <p>
+
+Every task has its own *independent* default buffer. A task's buffer is only created if it is
+used, so this does not slow down the spawning of Julia tasks in general. Here's a demo
+showing that the default buffers are different:
 
 #+begin_src julia
 using Bumper
@@ -162,34 +194,196 @@ end
 
 : true
 
-Because of this, we don't have to worry about =@no_escape begin ... alloc() ... end= blocks on different threads or tasks interfering
-with each other, so long as they are only operating on buffers local to that task or the =default_buffer()=.
+Because of this, we don't have to worry about =@no_escape begin ... @alloc() ... end= blocks on
+different threads or tasks interfering with each other, so long as they are only operating on
+buffers local to that task or the =default_buffer()=.
+
+#+HTML: </details>
+#+HTML: </p>
 
 ** Changing buffers
+
+#+HTML: <details><summary>Click me!</summary>
+#+HTML: <p>
 
 If for some reason you want to run a chunk of code with the default bufferr temporarily modified, you can use =with_buffer(f, b)= for that:
 
 #+begin_src julia
-let b = default_buffer()
-    with_buffer(AllocBuffer(100)) do
-        b === default_buffer()
+let b1 = default_buffer()
+    b2 = AllocBuffer(10000)
+    with_buffer(b2) do
+        @show default_buffer() == b2
     end
-end
+    @show default_buffer() == b1
+end;
 #+end_src
 
-: false
+: default_buffer() == b2 = true
+: default_buffer() == b1 = true
 
 This is dynamically scoped, so any nested function calls inside the =with_buffer= block will see a modified =default_buffer=.
 
-** Advanced usage with StaticCompiler.jl
+#+HTML: </details>
+#+HTML: </p>
 
-Bumper.jl can be useful to those who are trying to compile standalone static binaries with StaticCompiler.jl since those binaries
-do not have Julia's GC available to them. To do so, we won't be able to count on the global default buffer or =with_buffer=, but
-will instead have to explicitly provide it. We'll also need to use =alloc_nothrow= instead due to a current limitation of
-StaticCompiler.
+** Docstrings
+#+HTML: <details><summary>Click me!</summary>
+#+HTML: <p>
+
+#+begin_src julia
+@doc @alloc
+#+end_src
+
+#+begin_export markdown
+```
+@alloc(T, n::Int...) -> PtrArray{T, length(n)}
+```
+
+This can only be used inside a `@no_escape` block to allocate a `PtrArray` whose dimensions are determined by `n`. The memory used to allocate this array will come from the buffer associated with the enclosing `@no_escape` block.
+
+Do not allow any references to these arrays to escape the enclosing `@no_escape` block, and do not pass these arrays to concurrent tasks unless that task is guaranteed to terminate before the `@no_escape` block ends. Any array allocated in this way which is found outside of it's parent `@no_escape` block has undefined contents.
+#+end_export
+
+#+begin_src julia
+@doc @no_escape
+#+end_src
+
+#+begin_export markdown
+```
+@no_escape([buf=default_buffer()], expr)
+```
+
+Record the current state of `buf` (which defaults to the `default_buffer()` if there is only one argument), and then run the code in `expr` and then reset `buf` back to the state it was in before the code ran. This allows us to allocate memory within the `expr` using `@alloc`, and then have those arrays be automatically de-allocated once the expression is over. This is a restrictive but highly efficient form of memory management.
+
+Using `return`, `@goto`, and `@label` are not allowed inside of `@no_escape` block.
+
+Example:
+
+```
+function f(x::Vector{Int})
+    # Set up a scope where memory may be allocated, and does not escape:
+    @no_escape begin
+        # Allocate a `PtrArray` from StrideArraysCore.jl using memory from the default buffer.
+        y = @alloc(Int, length(x))
+        # Now do some stuff with that vector:
+        y .= x .+ 1
+       sum(y)
+    end
+end
+```
+#+end_export
+
+#+begin_src julia
+@doc AllocBuffer
+#+end_src
+
+#+begin_export markdown
+```
+AllocBuffer(max_size::Int) -> AllocBuffer{Vector{UInt8}}
+```
+
+Create an AllocBuffer storing a vector of bytes which can store as most `max_size` bytes
+
+```
+AllocBuffer(storage::T) -> AllocBuffer{T}
+```
+
+Create an AllocBuffer using `storage` as the memory slab. Whatever `storage` is, it must support `Base.pointer`, and the `sizeof` function must give the number of bytes available to that pointer.
+
+```
+AllocBuffer() -> AllocBuffer{Vector{UInt8}}
+```
+
+Create an AllocBuffer whose size is determined by `Bumper.buffer_size[]`. 
+
+```
+AllocBuffer{StorageType}
+```
+
+This is a single bump allocator that could be used to store some memory of type `StorageType`. Do not manually manipulate the fields of an AllocBuffer that is in use.
+#+end_export
+
+#+begin_src julia
+@doc default_buffer()
+#+end_src
+
+#+begin_export markdown
+default_buffer() -> AllocBuffer{Vector{UInt8}}
+
+Return the current task-local default buffer, if one does not exist in the current task, it will create one.
+#+end_export
+
+#+begin_src julia
+@doc with_buffer()
+#+end_src
+
+#+begin_export markdown
+```
+with_buffer(f, buf::AllocBuffer)
+```
+
+Execute the function `f()` in a context where `default_buffer()` will return `buf` instead of the normal `default_buffer`.
+
+Example:
+
+```
+julia> let b1 = default_buffer()
+           b2 = AllocBuffer(10000)
+           with_buffer(b2) do
+               @show default_buffer() == b2
+           end
+           @show default_buffer() == b1
+       end
+default_buffer() == b2 = true
+default_buffer() == b1 = true
+true
+```
+#+end_export
+
+#+begin_src julia
+@doc Bumper.set_default_buffer_size!
+#+end_src
+
+#+begin_export markdown
+```
+Bumper.set_default_buffer_size!(n::Int)
+```
+
+Change the size that future `AllocBuffer()`s will be created with.
+#+end_export
+
+
+#+begin_src julia
+@doc Bumper.reset_buffer!
+#+end_src
+
+#+begin_export markdown
+```
+Bumper.reset_buffer!(buf::AllocBuffer=default_buffer())
+```
+
+This resets an AllocBuffer's offset to zero, effectively making it like a freshly allocated buffer. This might be necessary to use if you accidentally over-allocate a buffer.
+#+end_export
+
+
+
+#+HTML: </details>
+#+HTML: </p>
+
+** Advanced usage with StaticCompiler.jl
+#+HTML: <details><summary>Click me!</summary>
+#+HTML: <p>
+
+Bumper.jl can be useful to those who are trying to compile standalone static binaries with
+StaticCompiler.jl ince those binaries do not have Julia's GC available to them. To do so, we
+won't be able to count on the global default buffer or =with_buffer=, but will instead have
+to explicitly provide it. We'll also need to use =@alloc_nothrow= instead due to a current
+limitation of StaticCompiler. =@alloc_nothrow= is the same as =@alloc= but it doesn't throw
+errors.
 
 #+begin_src julia
 using Bumper, StaticCompiler, StaticTools
+
 function foo(argc::Int, argv::Ptr{Ptr{UInt8}})
     n = argparse(Int, argv, 2)
     v = MallocArray{UInt8}(undef, 100) # 100 bytes of malloc'd memory to work with.
@@ -199,7 +393,7 @@ function foo(argc::Int, argv::Ptr{Ptr{UInt8}})
     for i ∈ 1:10000
         @no_escape buf begin # <----- Note that we specify buf here.
             # allocate a chunk of n bytes at a time before resetting, so we don't spill over our 100 byte limit
-            x = alloc_nothrow(Int, buf, n) # <--- Note that we're using alloc_nothrow
+            x = @alloc_nothrow(Int, n) # <--- Note that we're using @alloc_nothrow
             x .= 1
             s += sum(x)
         end
@@ -217,3 +411,5 @@ run(`./foo 5`) # run it
 : The sum is: 50000
 : Process(`./foo 5`, ProcessExited(0))
 
+#+HTML: </details>
+#+HTML: </p>
