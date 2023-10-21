@@ -87,8 +87,6 @@ You must obey all the rules from `@alloc`.
 function alloc end
 
 
-function no_escape end
-
 """
     with_buffer(f, buf::AllocBuffer)
 
@@ -219,17 +217,6 @@ end
 Use Bumper.reset_buffer!() or Bumper.reset_buffer!(b::AllocBuffer) to reclaim its memory.")
 end
 
-function no_escape(f, b::AllocBuffer)
-    offset = b.offset
-    res = f()
-    b.offset = offset
-    if res isa PtrArray && !(allow_ptr_array_to_escape())
-        esc_err()
-    end
-    res
-end
-no_escape(f) = no_escape(f, default_buffer())
-
 macro no_escape(b_ex, ex)
     _no_escape_macro(b_ex, ex, __module__)
 end
@@ -240,7 +227,6 @@ end
 
 isexpr(ex) = ex isa Expr
 isexpr(ex, head) = isexpr(ex) && ex.head == head
-isexpr(ex, head, count) = isexpr(ex, head) && length(ex.args) == count
 
 function _no_escape_macro(b_ex, _ex, __module__)
     @gensym b offset

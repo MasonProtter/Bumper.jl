@@ -55,7 +55,7 @@ end
     end
 
     let b1 = default_buffer()
-        b2 = AllocBuffer(10000)
+        b2 = AllocBuffer(Vector{Int}(undef, 100))
         with_buffer(b2) do
             @test default_buffer() == b2
         end
@@ -64,9 +64,16 @@ end
 
     @test_throws Exception Bumper.alloc(Int, b, 100000)
     Bumper.reset_buffer!(b)
+    Bumper.reset_buffer!()
     @test_throws Exception @no_escape begin
         alloc(Int, 10)
     end
+
+    @no_escape b begin
+        v = @alloc_nothrow(Int, 100000)
+        @test 8*length(v) > length(b.storage)
+    end
+    
 end
 
 macro sneaky_return(ex)
@@ -104,6 +111,11 @@ end
     @test_throws Exception Bumper.Internals._no_escape_macro(
         :(default_buffer()),
         :(@sneaky_goto lab),
+        @__MODULE__()
+    )
+    @test_throws Exception Bumper.Internals._no_escape_macro(
+        :(default_buffer()),
+        :(@label lab),
         @__MODULE__()
     )
 end
