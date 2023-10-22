@@ -74,7 +74,6 @@ end
 @benchmark g(x) setup=(x = rand(1:10, 30))
 #+end_src
 
-#+RESULTS:
 : BenchmarkTools.Trial: 10000 samples with 994 evaluations.
 :  Range (min … max):  33.705 ns … 898.148 ns  ┊ GC (min … max): 0.00% … 89.85%
 :  Time  (median):     37.325 ns               ┊ GC (median):    0.00%
