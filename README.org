@@ -145,7 +145,7 @@ end
 #+HTML: <p>
 
 + =@no_escape= blocks can be nested as much as you want (so long as the allocator has enough memory to store the objects you're using.
-+ At the end of a `@no_escape` block, all memory allocations from inside that block are erased and the buffer is reset to its previous
++ At the end of a =@no_escape= block, all memory allocations from inside that block are erased and the buffer is reset to its previous
   state.
 + The =@alloc= macro can only be used directly inside of a =@no_escape= block, and it will always use the buffer that the
   corresponding =@no_escape= block uses.
