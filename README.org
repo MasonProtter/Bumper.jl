@@ -5,9 +5,10 @@
 
 Bumper.jl is an experimental package that aims to make working with bump allocators (also known as arena allocators)
 easy and safer (though not totally safe!). You can dynamically allocate memory to these bump allocators, and reset
-them at the end of a code block, just like Julia's default stack. Allocating to the a =AllocBuffer= with Bumper.jl
+them at the end of a code block, just like Julia's stack. Allocating to the a =AllocBuffer= with Bumper.jl
 can be just as efficient as stack allocation. The point of this is to not have to pay the hefty cost of
 intermediate allocations.
+
 
 ** Basics
 #+HTML: <details><summary>Click me!</summary>
@@ -30,7 +31,7 @@ function f(x::Vector{Int})
         y = @alloc(Int, length(x))
         # Now do some stuff with that vector:
         y .= x .+ 1
-        sum(y)
+        sum(y) # It's okay for the sum of y to escape the block, but references to y itself must not do so!
     end
 end
 
@@ -42,7 +43,7 @@ f([1,2,3])
 When you use =@no_escape=, you are promising that any code enclosed in the supplied code block will not leak any memory
 created by =@alloc=. That is, you are *only* allowed to do intermediate =@alloc= allocations inside a =@no_escape= block,
 and the lifetime of those allocations is the block. **This is important.** Once a =@no_escape= block finishes running, it
-will reset its internal pointer to its position from before the block started.
+will reset its internal pointer to the position it had before the block started.
 
 Let's compare the performance of =f= to the equivalent with an intermediate heap allocation:
 
@@ -52,13 +53,13 @@ using BenchmarkTools
 #+end_src
 
 : BenchmarkTools.Trial: 10000 samples with 998 evaluations.
-:  Range (min … max):  14.676 ns … 30.970 ns  ┊ GC (min … max): 0.00% … 0.00%
-:  Time  (median):     15.219 ns              ┊ GC (median):    0.00%
-:  Time  (mean ± σ):   15.367 ns ±  1.246 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+:  Range (min … max):  14.707 ns … 27.205 ns  ┊ GC (min … max): 0.00% … 0.00%
+:  Time  (median):     15.280 ns              ┊ GC (median):    0.00%
+:  Time  (mean ± σ):   15.353 ns ±  0.497 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
 : 
-:     █▆▁▁▆▇▂                                                    
-:   ▂▆███████▅▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▁▂▂▂▂▂▁▁▁▂▂ ▃
-:   14.7 ns         Histogram: frequency by time          20 ns <
+:            ▄▄█▄▄▂                                              
+:   ▂▂▂▂▂▂▃▃▇███████▆▅▃▃▃▃▂▂▂▂▂▁▂▂▂▂▁▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂▂▂▂▂▂▂▂▂▂ ▃
+:   14.7 ns         Histogram: frequency by time        17.4 ns <
 : 
 :  Memory estimate: 0 bytes, allocs estimate: 0.
 
@@ -145,6 +146,8 @@ end
 #+HTML: <p>
 
 + =@no_escape= blocks can be nested as much as you want (so long as the allocator has enough memory to store the objects you're using.
++ At the end of a `@no_escape` block, all memory allocations from inside that block are erased and the buffer is reset to its previous
+  state.
 + The =@alloc= macro can only be used directly inside of a =@no_escape= block, and it will always use the buffer that the
   corresponding =@no_escape= block uses.
 + If for some reason you need to be able to use =@alloc= outside of the scope of the =@no_escape= block, there is a
@@ -236,6 +239,7 @@ Sorry, I haven't found a better way to make these display yet
 @doc @alloc
 #+end_src
 
+
 #+begin_src markdown
 ```
 @alloc(T, n::Int...) -> PtrArray{T, length(n)}
@@ -245,6 +249,7 @@ This can only be used inside a `@no_escape` block to allocate a `PtrArray` whose
 
 Do not allow any references to these arrays to escape the enclosing `@no_escape` block, and do not pass these arrays to concurrent tasks unless that task is guaranteed to terminate before the `@no_escape` block ends. Any array allocated in this way which is found outside of it's parent `@no_escape` block has undefined contents.
 #+end_src
+
 
 __________________
 
@@ -258,6 +263,8 @@ __________________
 ```
 
 Record the current state of `buf` (which defaults to the `default_buffer()` if there is only one argument), and then run the code in `expr` and then reset `buf` back to the state it was in before the code ran. This allows us to allocate memory within the `expr` using `@alloc`, and then have those arrays be automatically de-allocated once the expression is over. This is a restrictive but highly efficient form of memory management.
+
+See also `Bumper.checkpoint_save`, and `Bumper.checkpoint_restore!`.
 
 Using `return`, `@goto`, and `@label` are not allowed inside of `@no_escape` block.
 
@@ -276,6 +283,7 @@ function f(x::Vector{Int})
 end
 ```
 #+end_src
+
 
 __________________
 
@@ -316,10 +324,13 @@ __________________
 #+end_src
 
 #+begin_src markdown
+```
 default_buffer() -> AllocBuffer{Vector{UInt8}}
+```
 
 Return the current task-local default buffer, if one does not exist in the current task, it will create one.
 #+end_src
+
 
 __________________
 
@@ -349,6 +360,8 @@ default_buffer() == b1 = true
 true
 ```
 #+end_src
+
+
 __________________
 
 #+begin_src julia
@@ -360,8 +373,9 @@ __________________
 Bumper.set_default_buffer_size!(n::Int)
 ```
 
-Change the size that future `AllocBuffer()`s will be created with.
+Change the size (in number of bytes) of the default buffer. This should not be done while any buffers are in use, as their contents may become undefined.
 #+end_src
+
 __________________
 
 #+begin_src julia
@@ -374,6 +388,38 @@ Bumper.reset_buffer!(buf::AllocBuffer=default_buffer())
 ```
 
 This resets an AllocBuffer's offset to zero, effectively making it like a freshly allocated buffer. This might be necessary to use if you accidentally over-allocate a buffer.
+#+end_src
+
+__________________
+
+#+begin_src julia
+@doc Bumper.checkpoint_save
+#+end_src
+
+#+begin_src markdown
+```
+Bumper.checkpoint_save(buf::AllocBuffer = default_buffer()) -> Checkpoint
+```
+
+Returns a `Checkpoint` object which stores the state of an `AllocBuffer` at a given point in a program. One can then use `Bumper.checkpoint_restore!(cp::Checkpoint)` to later on restore the state of the buffer to it's earlier saved state, undoing any bump allocations which happened in the meantime on that buffer.
+
+Users should prefer to use `@no_escape` instead of `checkpoint_save` and `checkpoint_restore`, which is a safer and more structured way of doing the same thing.
+#+end_src
+
+__________________
+
+#+begin_src julia
+@doc Bumper.checkpoint_restore!
+#+end_src
+
+#+begin_src markdown
+```
+Bumper.checkpoint_restore!(cp::Checkpoint)
+```
+
+Restore a buffer (the one used to create the checkpoint) to the state it was in when the checkpoint was created, undoing any bump allocations which happened in the meantime on that buffer. See also `Bumper.checkpoint_save`
+
+Users should prefer to use `@no_escape` instead of `checkpoint_save` and `checkpoint_restore`, which is a safer and more structured way of doing the same thing.
 #+end_src
 
 
