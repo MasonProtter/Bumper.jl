@@ -3,7 +3,7 @@
 :END:
 * Bumper.jl
 
-Bumper.jl is an experimental package that aims to make working with bump allocators (also known as arena allocators)
+Bumper.jl is a package that aims to make working with bump allocators (also known as arena allocators)
 easy and safer (though not totally safe!). You can dynamically allocate memory to these bump allocators, and reset
 them at the end of a code block, just like Julia's stack. Allocating to the a =AllocBuffer= with Bumper.jl
 can be just as efficient as stack allocation. The point of this is to not have to pay the hefty cost of
