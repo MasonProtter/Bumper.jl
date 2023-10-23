@@ -149,7 +149,7 @@ end
   state.
 + The =@alloc= macro can only be used directly inside of a =@no_escape= block, and it will always use the buffer that the
   corresponding =@no_escape= block uses.
-+ Do not use `@alloc` from a different concurrent task than its parent `@no_escape` block as this can cause concurrency bugs. 
++ Do not use =@alloc= from a different concurrent task than its parent =@no_escape= block as this can cause concurrency bugs. 
 + If for some reason you need to be able to use =@alloc= outside of the scope of the =@no_escape= block, there is a
   function  =Bumper.alloc(T, buf, n...)= which takes in an explicit buffer =buf= and uses it to allocate an array of
   element type =T=, and dimensions =n...=. Using this is not as safe as =@alloc= and not recommended.
