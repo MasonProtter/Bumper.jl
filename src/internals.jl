@@ -98,7 +98,7 @@ isexpr(ex) = ex isa Expr
 isexpr(ex, head) = isexpr(ex) && ex.head == head
 
 function _no_escape_macro(b_ex, _ex, __module__)
-    @gensym b offset
+    @gensym b offset tsk
     e_offset = esc(offset)
     # This'll be the variable labelling the active buffer
     e_b = esc(b)
@@ -108,7 +108,9 @@ function _no_escape_macro(b_ex, _ex, __module__)
                 if ex.args[1] == Symbol("@alloc")
                     # replace calls to @alloc(T, size...) with alloc(T, buf, size...) where buf
                     # is the current buffer in use.
-                    Expr(:call, _alloc, b, recursive_handler.(ex.args[3:end])...)
+                    Expr(:block,
+                         :($tsk === $current_task() || $tsk_err()),
+                         Expr(:call, _alloc, b, recursive_handler.(ex.args[3:end])...))
                 elseif ex.args[1] == Symbol("@alloc_nothrow")
                     Expr(:call, _alloc_nothrow, b, recursive_handler.(ex.args[3:end])...)
                 elseif ex.args[1] == Symbol("@no_escape")
@@ -137,6 +139,7 @@ function _no_escape_macro(b_ex, _ex, __module__)
 
     quote
         $e_b = $(esc(b_ex))
+        $(esc(tsk)) = current_task()
         local cp = checkpoint_save($e_b)
         local res = $(esc(ex))
         checkpoint_restore!(cp)
@@ -146,6 +149,9 @@ function _no_escape_macro(b_ex, _ex, __module__)
         res
     end
 end
+
+@noinline tsk_err() =
+    error("Tried to use @alloc from a different task than its parent @no_escape block, that is not allowed for thread safety reasons. If you really need to do this, see Bumper.alloc instead of @alloc.")
 
 @noinline esc_err() =
     error("Tried to return a PtrArray from a `no_escape` block. If you really want to do this, evaluate Bumper.allow_ptrarray_to_escape() = true")

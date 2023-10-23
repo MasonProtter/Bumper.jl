@@ -78,6 +78,12 @@ end
         v = @alloc_nothrow(Int, 100000)
         @test 8*length(v) > length(b.buf)
     end
+
+    @test_throws Exception @no_escape begin
+        @sync Threads.@spawn begin
+            @alloc(Int, 10)
+        end
+    end
 end
 
 macro sneaky_return(ex)

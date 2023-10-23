@@ -85,7 +85,7 @@ create one.
 function default_buffer end
 
 """
-    alloc(T, b::AllocBuffer, n::Int...) -> PtrArray{T, length(n)}
+    Bumper.alloc(T, b::AllocBuffer, n::Int...) -> PtrArray{T, length(n)}
 
 Function-based alternative to `@alloc` which allocates onto a specified `AllocBuffer`.
 You must obey all the rules from `@alloc`, but you can use this outside of the lexical

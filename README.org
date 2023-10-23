@@ -9,7 +9,6 @@ them at the end of a code block, just like Julia's stack. Allocating to the a =A
 can be just as efficient as stack allocation. The point of this is to not have to pay the hefty cost of
 intermediate allocations.
 
-
 ** Basics
 #+HTML: <details><summary>Click me!</summary>
 #+HTML: <p>
@@ -53,13 +52,13 @@ using BenchmarkTools
 #+end_src
 
 : BenchmarkTools.Trial: 10000 samples with 998 evaluations.
-:  Range (min … max):  14.707 ns … 27.205 ns  ┊ GC (min … max): 0.00% … 0.00%
-:  Time  (median):     15.280 ns              ┊ GC (median):    0.00%
-:  Time  (mean ± σ):   15.353 ns ±  0.497 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+:  Range (min … max):  14.676 ns … 42.124 ns  ┊ GC (min … max): 0.00% … 0.00%
+:  Time  (median):     14.969 ns              ┊ GC (median):    0.00%
+:  Time  (mean ± σ):   15.057 ns ±  0.479 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
 : 
-:            ▄▄█▄▄▂                                              
-:   ▂▂▂▂▂▂▃▃▇███████▆▅▃▃▃▃▂▂▂▂▂▁▂▂▂▂▁▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂▂▂▂▂▂▂▂▂▂ ▃
-:   14.7 ns         Histogram: frequency by time        17.4 ns <
+:        ▂█▇▄▁                                                   
+:   ▃▃▃▃▇█████▇▄▄▄▃▃▃▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂ ▃
+:   14.7 ns         Histogram: frequency by time        16.9 ns <
 : 
 :  Memory estimate: 0 bytes, allocs estimate: 0.
 
@@ -149,7 +148,7 @@ end
   state.
 + The =@alloc= macro can only be used directly inside of a =@no_escape= block, and it will always use the buffer that the
   corresponding =@no_escape= block uses.
-+ Do not use =@alloc= from a different concurrent task than its parent =@no_escape= block as this can cause concurrency bugs. 
++ You cannot use =@alloc= from a different concurrent task than its parent =@no_escape= block as this can cause concurrency bugs. 
 + If for some reason you need to be able to use =@alloc= outside of the scope of the =@no_escape= block, there is a
   function  =Bumper.alloc(T, buf, n...)= which takes in an explicit buffer =buf= and uses it to allocate an array of
   element type =T=, and dimensions =n...=. Using this is not as safe as =@alloc= and not recommended.
@@ -235,10 +234,9 @@ This is dynamically scoped, so any nested function calls inside the =with_buffer
 
 Sorry, I haven't found a better way to make these display yet
 
-#+begin_src julia
-@doc @alloc
+#+begin_src julia 
+ @doc @alloc
 #+end_src
-
 
 #+begin_src markdown
 ```
@@ -283,7 +281,6 @@ function f(x::Vector{Int})
 end
 ```
 #+end_src
-
 
 __________________
 
