@@ -159,6 +159,9 @@ an error if you overfill them.
 
 ## Concurrency and parallelism
 
+<details><summary>Click me!</summary>
+<p>
+
 Every task has its own *independent* default buffer. A task's buffer is only created if it is
 used, so this does not slow down the spawning of Julia tasks in general. Here's a demo
 showing that the default buffers are different:
@@ -190,9 +193,14 @@ Because of this, we don't have to worry about `@no_escape begin ... @alloc() ...
 different threads or tasks interfering with each other, so long as they are only operating on
 buffers local to that task or the `default_buffer()`.
 
-
+</details>
+</p>
 
 ## Allocators provided by Bumper
+
+<details><summary>Click me!</summary>
+<p>
+
 ### SlabBuffer
 
 `SlabBuffer` is a slab-based bump allocator which can dynamically grow to hold an arbitrary amount of memory.
@@ -234,6 +242,9 @@ will be thrown. By default, `AllocBuffer` stores a `Vector{UInt8}` of `128` kilo
 Allocations using `AllocBuffer`s should be just as fast as stack allocation.
 
 Do not manually manipulate the fields of an AllocBuffer that is in use.
+
+</details>
+</p>
 
 ## Creating your own allocator types
 
