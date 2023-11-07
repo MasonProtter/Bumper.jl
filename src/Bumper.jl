@@ -20,16 +20,16 @@ use. One potential performance pitfall is if that `SlabBuffer`'s current positio
 the next allocation will be slow because it requires a new slab to be created. This means that if you do something
 like
 
-	buf = SlabBuffer{N}()
-	@no_escape buf begin
-		x = @alloc(Int8, N-1) # Almost fill up the first slab
-		for i in 1:1000
-			@no_escape buf begin
-				y = @alloc(Int8, 10) # Allocate a new slab because there's no room
-				f(y)
-			end # At the end of this block, we delete the new slab because it's not needed.
-		end
-	end 
+    buf = SlabBuffer{N}()
+    @no_escape buf begin
+    x = @alloc(Int8, N-1) # Almost fill up the first slab1
+        for i in 1:1000
+            @no_escape buf begin
+                y = @alloc(Int8, 10) # Allocate a new slab because there's no room
+                f(y)
+            end # At the end of this block, we delete the new slab because it's not needed.
+        end
+    end 
 
 then the inner loop will run slower than normal because at each iteration, a new slab of size `N` bytes must be freshly
 allocated. This should be a rare occurance, but is possible to encounter.
