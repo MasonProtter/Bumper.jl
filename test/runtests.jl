@@ -1,7 +1,5 @@
 using Test, Bumper
 
-# set_default_buffer_size!(1000)
-
 function f(x, buf=default_buffer())
     @no_escape buf begin
         y = @alloc(Int, length(x))
@@ -84,6 +82,17 @@ end
             @alloc(Int, 10)
         end
     end
+    # with_buffer(AllocBuffer(10)) do
+    #     @test sizeof(default_buffer().buf) == 10
+    #     Threads.@spawn begin
+    #         @test sizeof(default_buffer().buf) == 10
+    #     end
+    #     with_buffer(AllocBuffer(11)) do
+    #         Threads.@spawn begin
+    #             @test sizeof(default_buffer().buf) == 11
+    #         end
+    #     end
+    # end
 end
 
 macro sneaky_return(ex)

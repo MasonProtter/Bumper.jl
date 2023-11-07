@@ -52,13 +52,13 @@ using BenchmarkTools
 #+end_src
 
 : BenchmarkTools.Trial: 10000 samples with 998 evaluations.
-:  Range (min … max):  14.676 ns … 42.124 ns  ┊ GC (min … max): 0.00% … 0.00%
-:  Time  (median):     14.969 ns              ┊ GC (median):    0.00%
-:  Time  (mean ± σ):   15.057 ns ±  0.479 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+:  Range (min … max):  15.460 ns … 24.585 ns  ┊ GC (min … max): 0.00% … 0.00%
+:  Time  (median):     15.942 ns              ┊ GC (median):    0.00%
+:  Time  (mean ± σ):   16.037 ns ±  0.486 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
 : 
-:        ▂█▇▄▁                                                   
-:   ▃▃▃▃▇█████▇▄▄▄▃▃▃▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂ ▃
-:   14.7 ns         Histogram: frequency by time        16.9 ns <
+:         ▅██▇▆▄                                                 
+:   ▁▁▁▂▄▇███████▆▄▄▃▃▃▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ ▂
+:   15.5 ns         Histogram: frequency by time        18.4 ns <
 : 
 :  Memory estimate: 0 bytes, allocs estimate: 0.
 
@@ -93,7 +93,7 @@ you against concurrency bugs (more on that in the next section).
 
 If we provide the buffer to =f= explicitly, 
 #+begin_src julia
-function f(x, buf::AllocBuffer)
+function f(x, buf)
     @no_escape buf begin # <----- Notice I specified buf here
         y = @alloc(Int, length(x)) 
         y .= x .+ 1
@@ -224,6 +224,30 @@ end;
 : default_buffer() == b1 = true
 
 This is dynamically scoped, so any nested function calls inside the =with_buffer= block will see a modified =default_buffer=.
+
+Additionally, =default_buffer()= called on new tasks which are created inside the scope of =with_buffer= will create
+buffers of the same size as the buffer you supply, i.e.
+
+#+begin_src julia
+let b = AllocBuffer(10)
+    with_buffer(b) do
+        @show sizeof(default_buffer())
+        Threads.@spawn begin
+            # Now that we're on a new thread, the default_buffer changes:
+            @show default_buffer() != b
+            # but it's still of the same length as b:
+            @show sizeof(default_buffer()) == sizeof(b)
+        end
+    end
+end;
+#+end_src
+
+#+RESULTS:
+: sizeof(default_buffer()) = 10
+: default_buffer() != b = true
+: sizeof(default_buffer()) == sizeof(b) = true
+
+
 
 #+HTML: </details>
 #+HTML: </p>

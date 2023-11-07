@@ -1,97 +1,24 @@
 module Internals
 
 using StrideArraysCore
-import Bumper: AllocBuffer,  alloc, default_buffer, allow_ptr_array_to_escape, set_default_buffer_size!,
-    with_buffer, @no_escape, alloc_nothrow, reset_buffer!, Checkpoint, checkpoint_save, checkpoint_restore!
-
-function total_physical_memory()
-    @static if isdefined(Sys, :total_physical_memory)
-        Sys.total_physical_memory()
-    elseif isdefined(Sys, :physical_memory)
-        Sys.physical_memory()
-    else
-        Sys.total_memory()
-    end
-end
-
-const default_buffer_key = gensym(:buffer)
-
-"""
-    buffer_size :: RefValue{Int}
-
-The default size in bytes of buffers created by calling `AllocBuffer()`
-"""
-const buffer_size = Ref(total_physical_memory() ÷ 8)
-
-Base.pointer(b::AllocBuffer) = pointer(b.buf)
-
-"""
-    AllocBuffer(max_size::Int) -> AllocBuffer{Vector{UInt8}}
-
-Create an AllocBuffer storing a vector of bytes which can store as most `max_size` bytes
-"""
-AllocBuffer(max_size::Int)  = AllocBuffer(Vector{UInt8}(undef, max_size), UInt(0))
-
-"""
-    AllocBuffer(storage::T) -> AllocBuffer{T}
-
-Create an AllocBuffer using `storage` as the memory slab. Whatever `storage` is, it must
-support `Base.pointer`, and the `sizeof` function must give the number of bytes available
-to that pointer.
-"""
-AllocBuffer(storage) = AllocBuffer(storage, UInt(0))
-
-"""
-    AllocBuffer() -> AllocBuffer{Vector{UInt8}}
-
-Create an AllocBuffer whose size is determined by `Bumper.buffer_size[]`. 
-"""
-AllocBuffer() = AllocBuffer(Vector{UInt8}(undef, buffer_size[]), UInt(0))
-
-function default_buffer()
-    get!(() -> AllocBuffer(), task_local_storage(), default_buffer_key)::AllocBuffer{Vector{UInt8}}
-end
-
-function set_default_buffer_size!(sz::Int)
-    buffer_size[] = sz
-    resize!(default_buffer(), sz)
-    GC.gc()
-    sz
-end
-
-function reset_buffer!(b::AllocBuffer = default_buffer())
-    if b === default_buffer()
-        b.buf = Vector{UInt8}(undef, buffer_size[])
-        GC.gc()
-    end
-    b.offset = UInt(0)
-end
-
-function alloc_ptr(b::AllocBuffer, sz::Int)
-    ptr = pointer(b) + b.offset
-    b.offset += sz
-    b.offset > sizeof(b.buf) && oom_error()
-    ptr
-end
-
-function alloc_ptr_nothrow(b::AllocBuffer, sz::Int)
-    ptr = pointer(b) + b.offset
-    b.offset += sz
-    ptr
-end
-
-
-@noinline function oom_error()
-    error("alloc: Buffer out of memory. This might be a sign of a memory leak.
-Use Bumper.reset_buffer!() or Bumper.reset_buffer!(b::AllocBuffer) to reclaim its memory.")
-end
+import Bumper:
+    @no_escape,
+    alloc,
+    default_buffer,
+    allow_ptr_array_to_escape,
+    with_buffer,
+    reset_buffer!,
+    Checkpoint,
+    checkpoint_save,
+    checkpoint_restore!,
+    alloc_ptr!
 
 macro no_escape(b_ex, ex)
     _no_escape_macro(b_ex, ex, __module__)
 end
 
 macro no_escape(ex)
-    _no_escape_macro(:(default_buffer()), ex, __module__)
+    _no_escape_macro(:($default_buffer()), ex, __module__)
 end
 
 isexpr(ex) = ex isa Expr
@@ -110,9 +37,7 @@ function _no_escape_macro(b_ex, _ex, __module__)
                     # is the current buffer in use.
                     Expr(:block,
                          :($tsk === $current_task() || $tsk_err()),
-                         Expr(:call, _alloc, b, recursive_handler.(ex.args[3:end])...))
-                elseif ex.args[1] == Symbol("@alloc_nothrow")
-                    Expr(:call, _alloc_nothrow, b, recursive_handler.(ex.args[3:end])...)
+                         Expr(:call, alloc, b, recursive_handler.(ex.args[3:end])...))
                 elseif ex.args[1] == Symbol("@no_escape")
                     # If we encounter nested @no_escape blocks, we'll leave them alone
                     ex
@@ -136,7 +61,6 @@ function _no_escape_macro(b_ex, _ex, __module__)
         end
     end
     ex = recursive_handler(_ex)
-
     quote
         $e_b = $(esc(b_ex))
         $(esc(tsk)) = current_task()
@@ -156,33 +80,10 @@ end
 @noinline esc_err() =
     error("Tried to return a PtrArray from a `no_escape` block. If you really want to do this, evaluate Bumper.allow_ptrarray_to_escape() = true")
 
-with_buffer(f, b::AllocBuffer{Vector{UInt8}}) = task_local_storage(f, default_buffer_key, b)
-
-struct NoThrow end
-
-function StrideArraysCore.PtrArray{T}(b::AllocBuffer, s::Vararg{Integer, N}) where {T, N}
-    ptr = convert(Ptr{T}, alloc_ptr(b, prod(s) * sizeof(T)))
+function alloc(buf, ::Type{T}, s::Vararg{Integer, N}) where {T, N}
+    ptr::Ptr{T} = alloc_ptr!(buf, prod(s) * sizeof(T))
     PtrArray(ptr, s)
 end
 
-# alloc(::Type{T}, s::Integer...) where {T} = PtrArray{T}(default_buffer(), s...)
-alloc(::Type{T}, buf::AllocBuffer, s::Integer...) where {T} = PtrArray{T}(buf, s...)
-_alloc(buf::AllocBuffer, ::Type{T}, s::Integer...) where {T} = PtrArray{T}(buf, s...)
 
-function StrideArraysCore.PtrArray{T}(b::AllocBuffer, ::NoThrow, s::Vararg{Integer, N}) where {T, N}
-    ptr = convert(Ptr{T}, alloc_ptr_nothrow(b, prod(s) * sizeof(T)))
-    PtrArray(ptr, s)
 end
-
-alloc_nothrow(::Type{T}, buf::AllocBuffer, s...) where {T}  = PtrArray{T}(buf, NoThrow(), s...) 
-_alloc_nothrow(buf::AllocBuffer, ::Type{T}, s...) where {T} = PtrArray{T}(buf, NoThrow(), s...) 
-
-
-checkpoint_save(buf::AllocBuffer = default_buffer()) = Checkpoint(buf, buf.offset)
-
-function checkpoint_restore!(cp::Checkpoint)
-    cp.buf.offset = cp.offset
-    nothing
-end
-
-end # Internals
