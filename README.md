@@ -3,7 +3,7 @@
 - [Concurrency and parallelism](#concurrency-and-parallelism)
 - [Allocators provided by Bumper](#allocators-provided-by-bumper)
 - [Creating your own allocator types](#creating-your-own-allocator-types)
-- [Docstrings](#docstrings)
+- [Docstrings](Docstrings.md)
 
 
 # Bumper.jl
