@@ -211,12 +211,12 @@ like
 buf = SlabBuffer{N}()
 @no_escape buf begin
 	x = @alloc(Int8, N-1) # Almost fill up the first slab
-	for i in 1:1000
-		@no_escape buf begin
-			y = @alloc(Int8, 10) # Allocate a new slab because there's no room
-			f(y)
-		end # At the end of this block, we delete the new slab because it's not needed.
-	end
+    for i in 1:1000
+    @no_escape buf begin
+            y = @alloc(Int8, 10) # Allocate a new slab because there's no room
+            f(y)
+        end # At the end of this block, we delete the new slab because it's not needed.
+    end
 end 
 ```
 
@@ -251,7 +251,7 @@ When someone writes
 ``` julia
 @no_escape buf begin
     y = @alloc(T, n, m, o)
-	f(y)
+    f(y)
 end 
 ```
 this turns into the equivalent of
@@ -260,11 +260,11 @@ this turns into the equivalent of
 begin
 	local cp = Bumper.checkpoint_save(buf)
 	local result = begin 
-		y = Bumper.alloc!(buf, T, n, m, o)
-		f(y)
+        y = Bumper.alloc!(buf, T, n, m, o)
+        f(y)
     end
-	Bumper.checkpoint_restore!(cp)
-	result
+    Bumper.checkpoint_restore!(cp)
+    result
 end
 ```
 `checkpoint_save` should save the state of `buf`, `alloc!` should create an array using memory from `buf`, and `checkpoint_restor!` needs to reset `buf` to the state it was in when the checkpoint was created.
@@ -283,8 +283,8 @@ mutable struct MyAllocBuffer
     buf::Vector{UInt8} # The memory chunk we'll use for allocations
     offset::UInt       # A simple offset saying where the current position of the allocator is.
 	
-	#Default constructor
-	MyAllocBuffer(n::Int) = new(Vector{UInt8}(undef, n), UInt(0))
+    #Default constructor
+    MyAllocBuffer(n::Int) = new(Vector{UInt8}(undef, n), UInt(0))
 end
 
 struct MyCheckpoint
@@ -326,7 +326,8 @@ MyAllocBuffer() = MyAllocBuffer(16_000)
 const default_buffer_key = gensym(:my_buffer)
 my_default_buffer() = get!(() -> MyAllocBuffer(), task_local_storage(), default_buffer_key)::MyAllocBuffer
 ```
-check the docstrings for `get!` and `task_local_storage` to learn more.
+
+You may also want to implenet `Bumper.reset_buffer!` for refreshing you allocator to a freshly initialized state.
 
 </details>
 </p>
