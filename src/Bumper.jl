@@ -4,8 +4,8 @@ export SlabBuffer, AllocBuffer, @alloc, default_buffer, @no_escape, with_buffer
 using StrideArraysCore
 using mimalloc_jll
 
-malloc(n::Int) = @ccall mimalloc_jll.libmimalloc.malloc(n::Int)::Ptr{Cvoid}
-free(p::Ptr{Cvoid}) = @ccall mimalloc_jll.libmimalloc.free(p::Ptr{Cvoid})::Nothing
+malloc(n::Int) = Libc.malloc(n) #@ccall mimalloc_jll.libmimalloc.malloc(n::Int)::Ptr{Cvoid}
+free(p::Ptr{Cvoid}) = Libc.free(p) #@ccall mimalloc_jll.libmimalloc.free(p::Ptr{Cvoid})::Nothing
 
 
 """
@@ -172,32 +172,22 @@ which is a safer and more structured way of doing the same thing.
 """
 function checkpoint_restore! end
 
-# mutable struct MemSlab{Size}
-#     data::NTuple{Size, UInt8}
-#     MemSlab{Size}() where {Size} = new{convert(Int, Size)}()
-# end
 mutable struct SlabBuffer{SlabSize}
     current    ::Ptr{Cvoid}
-    offset     ::Int
+    slab_end   ::Ptr{Cvoid}
     slabs      ::Vector{Ptr{Cvoid}}
-    outline_buf::Vector{Ptr{Cvoid}} #Vector{Vector{UInt8}}
     function SlabBuffer{_SlabSize}() where {_SlabSize}
         SlabSize = convert(Int, _SlabSize)
+        current  = malloc(SlabSize)
+        slab_end = current + SlabSize
+        slabs    = [current]
         
-        first_slab  = malloc(SlabSize) #MemSlab{SlabSize}()
-        current     = first_slab#pointer(first_slab)
-        slabs       = [first_slab]
-        outline_buf = Vector{UInt8}[]
-        buf = new{SlabSize}(current, 0, slabs, outline_buf)
+        buf = new{SlabSize}(current, slab_end, slabs)
         finalizer(buf) do x
             for ptr ∈ buf.slabs
                 free(ptr)
             end
             resize!(buf.slabs, 0)
-            for ptr ∈ buf.outline_buf
-                free(ptr)
-            end
-            resize!(buf.outline_buf, 0)
         end
         buf
     end
