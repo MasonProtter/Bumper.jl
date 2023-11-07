@@ -6,6 +6,7 @@
 + `AllocBuffer` still exists, but now defaults to 128kb of storage instead of 1/8th of your computer's physical memory. This allocator is very slightly faster than the slab allocator, but will error if it runs out of memory. It also is more flexible in the kinds of types it can wrap to use as underlying storage.
 + There is now an API for hooking user-defined allocators into the `@no_escape` and `@alloc` machinery.
 + `alloc(::Type{T}, buffer, dims...)` is now `alloc!(buffer, ::Type{T}, dims...)`
++ `alloc_nothrow` and `@alloc_nothrow` have been removed. People who need this can instead create custom no-throw buffer types.
 
 ## Version 0.4.0
 
