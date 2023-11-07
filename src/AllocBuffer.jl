@@ -5,7 +5,8 @@ import Bumper:
     alloc_ptr!,
     checkpoint_save,
     checkpoint_restore!,
-    default_buffer
+    default_buffer,
+    reset_buffer!
 
 # const buffer_size = Ref{Int}(256_000)
 # get_default_buffer_size() = buffer_size[]
@@ -16,7 +17,7 @@ import Bumper:
 #     sz
 # end
 
-const default_buffer_size = 10_028_000
+const default_buffer_size = 128_000
 const default_buffer_key = gensym(:buffer)
 
 AllocBuffer(max_size::Int) = AllocBuffer(Vector{UInt8}(undef, max_size), UInt(0))
@@ -31,9 +32,7 @@ inline_size(b::AllocBuffer) = sizeof(b.inline_buf)
 with_buffer(f, b::AllocBuffer) =  task_local_storage(f, default_buffer_key, b)
 
 function reset_buffer!(b::AllocBuffer = default_buffer())
-    b.inline_offset = UInt(0)
-    resize!(outline_buf, 0)
-    b.outline_position = 0
+    b.offset = UInt(0)
     nothing
 end
 struct AllocCheckpoint{Store}

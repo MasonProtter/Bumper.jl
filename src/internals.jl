@@ -3,12 +3,11 @@ module Internals
 using StrideArraysCore
 import Bumper:
     @no_escape,
-    alloc,
+    alloc!,
     default_buffer,
     allow_ptr_array_to_escape,
     with_buffer,
     reset_buffer!,
-    Checkpoint,
     checkpoint_save,
     checkpoint_restore!,
     alloc_ptr!
@@ -37,7 +36,7 @@ function _no_escape_macro(b_ex, _ex, __module__)
                     # is the current buffer in use.
                     Expr(:block,
                          :($tsk === $current_task() || $tsk_err()),
-                         Expr(:call, alloc, b, recursive_handler.(ex.args[3:end])...))
+                         Expr(:call, alloc!, b, recursive_handler.(ex.args[3:end])...))
                 elseif ex.args[1] == Symbol("@no_escape")
                     # If we encounter nested @no_escape blocks, we'll leave them alone
                     ex
@@ -80,7 +79,7 @@ end
 @noinline esc_err() =
     error("Tried to return a PtrArray from a `no_escape` block. If you really want to do this, evaluate Bumper.allow_ptrarray_to_escape() = true")
 
-function alloc(buf, ::Type{T}, s::Vararg{Integer, N}) where {T, N}
+function alloc!(buf, ::Type{T}, s::Vararg{Integer, N}) where {T, N}
     ptr::Ptr{T} = alloc_ptr!(buf, prod(s) * sizeof(T))
     PtrArray(ptr, s)
 end

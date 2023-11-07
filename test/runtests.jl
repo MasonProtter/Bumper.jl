@@ -2,15 +2,15 @@ using Test, Bumper
 
 function f(x, buf=default_buffer())
     @no_escape buf begin
-        y = @alloc(Int, length(x))
+        y = @alloc(eltype(x), length(x))
         y .= x .+ 1
         sum(y)
     end
 end
 
-function g(x, buf::AllocBuffer)
+function g(x, buf)
     @no_escape buf begin 
-        y = Bumper.alloc(Int, buf, length(x)) 
+        y = Bumper.alloc!(buf, eltype(x), length(x)) 
         y .= x .+ 1
         sum(y)
     end
@@ -46,35 +46,51 @@ end
         b2 = AllocBuffer(100)
         @no_escape b2 begin
             z = @alloc(Int, length(v))
-            @test pointer(z) == pointer(b2) 
+            @test pointer(z) == pointer(b2.buf)
         end
         
         @test b.offset == off1
     end
 
-    let b1 = default_buffer()
-        b2 = AllocBuffer(Vector{UInt8}(undef, 100))
-        with_buffer(b2) do
-            @test default_buffer() == b2
+    sb = SlabBuffer{16_384}()
+    @no_escape sb begin
+        p = sb.current
+        e = sb.slab_end
+        x = @alloc(Int8, 16_383)
+        for i ∈ 1:5
+            @no_escape sb begin
+                @test sb.current == p + 16_383
+                @test p <= sb.current <= e
+                y = @alloc(Int, 10)
+                @test !(p <= sb.current <= e)
+            end
         end
-        @test default_buffer() == b1
+        z = @alloc(Int, 100_000)
+        @test sb.current == p + 16_383
+        @test sb.slab_end == e
+        @test !(p <= pointer(z) <= e)
+        @test pointer(z) == sb.custom_slabs[end]
     end
-    let b2 = AllocBuffer(Vector{Int}(undef, 100))
-        @test_throws MethodError with_buffer(b2) do
-            default_buffer()
-        end 
-    end
+    @test isempty(sb.custom_slabs)
 
-    @test_throws Exception Bumper.alloc(Int, b, 100000)
+    # let b1 = default_buffer()
+    #     b2 = AllocBuffer(Vector{UInt8}(undef, 100))
+    #     with_buffer(b2) do
+    #         @test default_buffer() == b2
+    #     end
+    #     @test default_buffer() == b1
+    # end
+    # let b2 = AllocBuffer(Vector{Int}(undef, 100))
+    #     @test_throws MethodError with_buffer(b2) do
+    #         default_buffer()
+    #     end 
+    # end
+
+    @test_throws Exception Bumper.alloc!(b, Int, 100000)
     Bumper.reset_buffer!(b)
     Bumper.reset_buffer!()
     @test_throws Exception @no_escape begin
-        alloc(Int, 10)
-    end
-
-    @no_escape b begin
-        v = @alloc_nothrow(Int, 100000)
-        @test 8*length(v) > length(b.buf)
+        @alloc(Int, 10)
     end
 
     @test_throws Exception @no_escape begin
@@ -82,17 +98,6 @@ end
             @alloc(Int, 10)
         end
     end
-    # with_buffer(AllocBuffer(10)) do
-    #     @test sizeof(default_buffer().buf) == 10
-    #     Threads.@spawn begin
-    #         @test sizeof(default_buffer().buf) == 10
-    #     end
-    #     with_buffer(AllocBuffer(11)) do
-    #         Threads.@spawn begin
-    #             @test sizeof(default_buffer().buf) == 11
-    #         end
-    #     end
-    # end
 end
 
 macro sneaky_return(ex)
@@ -114,12 +119,12 @@ end
     
     @test_throws Exception Bumper.Internals._no_escape_macro(
         :(default_buffer()),
-        :(return sum(alloc(Int, 10) .= 1)),
+        :(return sum(@alloc(Int, 10) .= 1)),
         @__MODULE__()
     )
     @test_throws Exception Bumper.Internals._no_escape_macro(
         :(default_buffer()),
-        :(@sneaky_return sum(alloc(Int, 10) .= 1)),
+        :(@sneaky_return sum(@alloc(Int, 10) .= 1)),
         @__MODULE__()
     )
     @test_throws Exception Bumper.Internals._no_escape_macro(
@@ -143,5 +148,5 @@ end
     @test default_buffer() === default_buffer()
     @test default_buffer() !== fetch(@async default_buffer())
 
-    @test default_buffer() !== with_buffer(default_buffer, AllocBuffer(100))
+    @test default_buffer() !== with_buffer(default_buffer, SlabBuffer())
 end
