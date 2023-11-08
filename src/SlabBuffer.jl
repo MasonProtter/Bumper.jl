@@ -21,6 +21,14 @@ Create a slab allocator whose slabs are of size $default_slab_size
 SlabBuffer() = SlabBuffer{default_slab_size}()
 
 const default_buffer_key = gensym(:slab_buffer)
+
+"""
+    default_buffer(::Type{SlabBuffer}) -> SlabBuffer{16_384}
+
+Return the current task-local default `SlabBuffer`, if one does not exist in the current task, it will
+create one automatically. This currently only works with `SlabBuffer{16_384}`, and you cannot adjust
+the slab size it creates.
+"""
 function default_buffer(::Type{SlabBuffer})
     get!(() -> SlabBuffer{default_slab_size}(), task_local_storage(), default_buffer_key)::SlabBuffer{default_slab_size}
 end
@@ -36,13 +44,8 @@ function alloc_ptr!(buf::SlabBuffer{SlabSize}, sz::Int)::Ptr{Cvoid} where {SlabS
     end
     p
 end
-@noinline function add_new_slab!(buf::SlabBuffer{SlabSize}, sz::Int)::Ptr{Cvoid} where {SlabSize}
-    # alloc_size = max(sz, SlabSize)
-    # new_slab = malloc(alloc_size)
 
-    # buf.current = new_slab + sz
-    # buf.slab_end = new_slab + alloc_size
-    # push!(buf.slabs, new_slab)
+@noinline function add_new_slab!(buf::SlabBuffer{SlabSize}, sz::Int)::Ptr{Cvoid} where {SlabSize}
     if sz > SlabSize
         custom = malloc(sz)
         push!(buf.custom_slabs, custom)

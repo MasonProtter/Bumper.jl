@@ -24,9 +24,9 @@ end
 
     @test f(v) == 9
     @test default_buffer().current == default_buffer().slabs[1]
-    @test f(v, b) == 9
+    @test f(v, b)  == 9
     @test b.offset == 0
-    @test g(v, b) == 9
+    @test g(v, b)  == 9
     @test b.offset == 0
     
     @test @allocated(f(v)) == 0
@@ -55,6 +55,25 @@ end
     @test isempty(sb.custom_slabs)
     @test sb.current == sb.slabs[1]
     @test sb.slab_end == sb.current + 16_384
+
+    try
+        @no_escape sb begin
+            x = @alloc(Int8, 16_383)
+            y = @alloc(Int8, 100_000)
+            z = @alloc(Int8, 10)
+            throw("Boo!")
+        end
+    catch e
+        @test length(sb.custom_slabs) == 1
+        @test length(sb.slabs) == 2
+        @test sb.current  == sb.slabs[2] + 10
+        
+        Bumper.reset_buffer!(sb)
+
+        @test isempty(sb.custom_slabs)
+        @test length(sb.slabs) == 1
+        @test sb.current  == sb.slabs[1]
+    end
     
     @no_escape b begin
         y = @alloc(Int, length(v))
@@ -78,6 +97,7 @@ end
     @test_throws Exception Bumper.alloc!(b, Int, 100000)
     Bumper.reset_buffer!(b)
     Bumper.reset_buffer!()
+
     @test_throws Exception @no_escape begin
         @alloc(Int, 10)
     end
@@ -145,7 +165,7 @@ end
     let b2 = AllocBuffer(Vector{Int}(undef, 100))
         @test_throws MethodError with_buffer(b2) do
             default_buffer()
-        end 
+        end
     end
     
     @test default_buffer() === default_buffer()
