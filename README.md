@@ -268,8 +268,8 @@ this turns into the equivalent of
 
 ``` julia
 begin
-	local cp = Bumper.checkpoint_save(buf)
-	local result = begin 
+    local cp = Bumper.checkpoint_save(buf)
+    local result = begin 
         y = Bumper.alloc!(buf, T, n, m, o)
         f(y)
     end
