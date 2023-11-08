@@ -6,30 +6,21 @@ import Bumper:
     checkpoint_save,
     checkpoint_restore!,
     default_buffer,
-    reset_buffer!
-
-# const buffer_size = Ref{Int}(256_000)
-# get_default_buffer_size() = buffer_size[]
-# function set_default_buffer_size!(sz::Int)
-#     buffer_size[] = sz
-#     resize!(default_buffer(), sz)
-#     GC.gc()
-#     sz
-# end
+    reset_buffer!,
+    with_buffer
 
 const default_buffer_size = 128_000
 const default_buffer_key = gensym(:buffer)
 
 AllocBuffer(max_size::Int) = AllocBuffer(Vector{UInt8}(undef, max_size), UInt(0))
-AllocBuffer(storage::Vector{UInt8}) = AllocBuffer(storage, UInt(0))
+AllocBuffer(storage) = AllocBuffer(storage, UInt(0))
 AllocBuffer() = AllocBuffer(Vector{UInt8}(undef, UInt(default_buffer_size)))
 
 function default_buffer(::Type{AllocBuffer})
     get!(() -> AllocBuffer(), task_local_storage(), default_buffer_key)::AllocBuffer{Vector{UInt8}}
 end
 
-inline_size(b::AllocBuffer) = sizeof(b.inline_buf)
-with_buffer(f, b::AllocBuffer) =  task_local_storage(f, default_buffer_key, b)
+with_buffer(f, b::AllocBuffer{Vector{UInt8}}) =  task_local_storage(f, default_buffer_key, b)
 
 function reset_buffer!(b::AllocBuffer = default_buffer())
     b.offset = UInt(0)

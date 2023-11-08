@@ -23,7 +23,7 @@ end
     b = AllocBuffer(100)
 
     @test f(v) == 9
-    @test b.offset == 0
+    @test default_buffer().current == default_buffer().slabs[1]
     @test f(v, b) == 9
     @test b.offset == 0
     @test g(v, b) == 9
@@ -32,25 +32,6 @@ end
     @test @allocated(f(v)) == 0
     @test @allocated(f(v, b)) == 0
     @test @allocated(g(v, b)) == 0
-
-    @no_escape b begin
-        y = @alloc(Int, length(v))
-        off1 = b.offset
-        @no_escape b begin
-            z = @alloc(Int, length(v))
-            
-            @test pointer(z) != pointer(y)
-            @test Int(pointer(z)) == Int(pointer(y)) + 8*length(v)
-            @test b.offset == off1 + 8*length(v)
-        end
-        b2 = AllocBuffer(100)
-        @no_escape b2 begin
-            z = @alloc(Int, length(v))
-            @test pointer(z) == pointer(b2.buf)
-        end
-        
-        @test b.offset == off1
-    end
 
     sb = SlabBuffer{16_384}()
     @no_escape sb begin
@@ -72,19 +53,27 @@ end
         @test pointer(z) == sb.custom_slabs[end]
     end
     @test isempty(sb.custom_slabs)
-
-    # let b1 = default_buffer()
-    #     b2 = AllocBuffer(Vector{UInt8}(undef, 100))
-    #     with_buffer(b2) do
-    #         @test default_buffer() == b2
-    #     end
-    #     @test default_buffer() == b1
-    # end
-    # let b2 = AllocBuffer(Vector{Int}(undef, 100))
-    #     @test_throws MethodError with_buffer(b2) do
-    #         default_buffer()
-    #     end 
-    # end
+    @test sb.current == sb.slabs[1]
+    @test sb.slab_end == sb.current + 16_384
+    
+    @no_escape b begin
+        y = @alloc(Int, length(v))
+        off1 = b.offset
+        @no_escape b begin
+            z = @alloc(Int, length(v))
+            
+            @test pointer(z) != pointer(y)
+            @test Int(pointer(z)) == Int(pointer(y)) + 8*length(v)
+            @test b.offset == off1 + 8*length(v)
+        end
+        b2 = AllocBuffer(100)
+        @no_escape b2 begin
+            z = @alloc(Int, length(v))
+            @test pointer(z) == pointer(b2.buf)
+        end
+        
+        @test b.offset == off1
+    end
 
     @test_throws Exception Bumper.alloc!(b, Int, 100000)
     Bumper.reset_buffer!(b)
@@ -145,8 +134,25 @@ end
 end
 
 @testset "tasks and buffer switching" begin
+
+    let b1 = default_buffer(AllocBuffer)
+        b2 = AllocBuffer(Vector{UInt8}(undef, 100))
+        with_buffer(b2) do
+            @test default_buffer(AllocBuffer) == b2
+        end
+        @test default_buffer(AllocBuffer) == b1
+    end
+    let b2 = AllocBuffer(Vector{Int}(undef, 100))
+        @test_throws MethodError with_buffer(b2) do
+            default_buffer()
+        end 
+    end
+    
     @test default_buffer() === default_buffer()
     @test default_buffer() !== fetch(@async default_buffer())
-
+    @test default_buffer() !== fetch(Threads.@spawn default_buffer())
+    
     @test default_buffer() !== with_buffer(default_buffer, SlabBuffer())
+    @test default_buffer(AllocBuffer) === default_buffer(AllocBuffer)
+    @test default_buffer(AllocBuffer) !== with_buffer(() -> default_buffer(AllocBuffer), AllocBuffer())
 end
