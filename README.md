@@ -220,10 +220,11 @@ buf = SlabBuffer{N}()
 @no_escape buf begin
     x = @alloc(Int8, N-1) # Almost fill up the first slab
     for i in 1:1000
-    @no_escape buf begin
-        y = @alloc(Int8, 10) # Allocate a new slab because there's no room
-        f(y)
-    end # At the end of this block, we delete the new slab because it's not needed.
+        @no_escape buf begin
+            y = @alloc(Int8, 10) # Allocate a new slab because there's no room
+            f(y)
+        end # At the end of this block, we delete the new slab because it's not needed.
+    end
 end 
 ```
 
