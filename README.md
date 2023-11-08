@@ -286,7 +286,7 @@ Hence, in order to use your custom allocator with Bumper.jl, all you need to wri
 + `checkpoint_restore!(::YourAllocatorCheckpoint)` which resets the allocator back to the state it was in when the checkpoint was created.
 
 
-Let's look at a concrete example making our own simple copy of `AllocBuffer`:
+Let's look at a concrete example where we make our own simple copy of `AllocBuffer`:
 
 ``` julia
 mutable struct MyAllocBuffer
@@ -334,10 +334,12 @@ As a bonus, this isn't required, but if you want to have functionality like `def
 MyAllocBuffer() = MyAllocBuffer(16_000)
 
 const default_buffer_key = gensym(:my_buffer)
-my_default_buffer() = get!(() -> MyAllocBuffer(), task_local_storage(), default_buffer_key)::MyAllocBuffer
+function Bumper.default_buffer(::Type{MyAllocBuffer})
+    get!(() -> MyAllocBuffer(), task_local_storage(), default_buffer_key)::MyAllocBuffer
+end
 ```
 
-You may also want to implenet `Bumper.reset_buffer!` for refreshing you allocator to a freshly initialized state.
+You may also want to implemet `Bumper.reset_buffer!` for refreshing you allocator to a freshly initialized state.
 
 </details>
 </p>
