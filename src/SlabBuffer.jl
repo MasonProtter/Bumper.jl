@@ -1,24 +1,92 @@
 module SlabBufferImpl
 
 import Bumper:
-    SlabBuffer,
     alloc_ptr!,
     checkpoint_save,
     checkpoint_restore!,
     reset_buffer!,
     default_buffer,
-    malloc,
-    free,
     with_buffer
 
+import Bumper.Internals: malloc, free
 const default_slab_size = 16_384
 
 """
-    SlabBuffer()
+    mutable struct SlabBuffer{SlabSize}
 
-Create a slab allocator whose slabs are of size $default_slab_size
+A slab-based bump allocator which can dynamically grow to hold an arbitrary amount of memory.
+Small allocations live within a specific slab of memory, and if that slab fills up, a new slab
+is allocated and future allocations happen on that slab. Small allocations are stored in slabs
+of size `SlabSize` bytes, and the list of live slabs are tracked in the `slabs` field.
+Allocations which are too large to fit into one slab are stored and tracked in the `custom_slabs`
+field.
+
+`SlabBuffer`s are nearly as fast as stack allocation (typically up to within a couple of nanoseconds) for typical
+use. One potential performance pitfall is if that `SlabBuffer`'s current position is at the end of a slab, then
+the next allocation will be slow because it requires a new slab to be created. This means that if you do something
+like
+
+    buf = SlabBuffer{N}()
+    @no_escape buf begin
+        x = @alloc(Int8, N-1) # Almost fill up the first slab
+        for i in 1:1000
+            @no_escape buf begin
+                y = @alloc(Int8, 10) # Allocate a new slab because there's no room
+                f(y)
+            end # At the end of this block, we delete the new slab because it's not needed.
+        end
+    end
+
+then the inner loop will run slower than normal because at each iteration, a new slab of size `N` bytes must be freshly
+allocated. This should be a rare occurance, but is possible to encounter.
+
+Do not manipulate the fields of a SlabBuffer that is in use.
 """
-SlabBuffer() = SlabBuffer{default_slab_size}()
+mutable struct SlabBuffer{SlabSize}
+    current      ::Ptr{Cvoid}
+    slab_end     ::Ptr{Cvoid}
+    slabs        ::Vector{Ptr{Cvoid}}
+    custom_slabs ::Vector{Ptr{Cvoid}}
+
+    function SlabBuffer{_SlabSize}(; finalize::Bool=true) where {_SlabSize}
+        SlabSize = convert(Int, _SlabSize)
+        current  = malloc(SlabSize)
+        slab_end = current + SlabSize
+        slabs = [current]
+        custom_slabs = Ptr{Cvoid}[]
+        buf = new{SlabSize}(current, slab_end, slabs, custom_slabs)
+        finalize && finalizer(free, buf)
+        buf
+    end
+end
+
+@doc """
+    SlabBuffer{SlabSize}(;finalize::Bool = true)
+
+Create a slab allocator whose slabs are of size `SlabSize`. If you set the
+`finalize` keyword argument to `false`, then you will need to explicitly
+call `Bumper.free()` when you are done with a `SlabBuffer`. This is not
+recommended.
+""" SlabBuffer{SlabSize}()
+
+"""
+    SlabBuffer(;finalize::Bool = true)
+
+Create a slab allocator whose slabs are of size $default_slab_size. If you set
+the `finalize` keyword argument to `false`, then you will need to explicitly
+call `Bumper.free()` when you are done with a `SlabBuffer`. This is not
+recommended.
+"""
+SlabBuffer(;finalize=true) = SlabBuffer{default_slab_size}(;finalize)
+
+function free(buf::SlabBuffer)
+    for ptr ∈ buf.slabs
+        free(ptr)
+    end
+    for ptr ∈ buf.custom_slabs
+        free(ptr)
+    end
+end
 
 const default_buffer_key = gensym(:slab_buffer)
 

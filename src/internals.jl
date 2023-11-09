@@ -12,6 +12,7 @@ import Bumper:
     checkpoint_restore!,
     alloc_ptr!
 
+
 macro no_escape(b_ex, ex)
     _no_escape_macro(b_ex, ex, __module__)
 end
@@ -19,6 +20,8 @@ end
 macro no_escape(ex)
     _no_escape_macro(:($default_buffer()), ex, __module__)
 end
+
+get_task() = Base.current_task()
 
 isexpr(ex) = ex isa Expr
 isexpr(ex, head) = isexpr(ex) && ex.head == head
@@ -35,7 +38,7 @@ function _no_escape_macro(b_ex, _ex, __module__)
                     # replace calls to @alloc(T, size...) with alloc(T, buf, size...) where buf
                     # is the current buffer in use.
                     Expr(:block,
-                         :($tsk === $current_task() || $tsk_err()),
+                         :($tsk === $get_task() || $tsk_err()),
                          Expr(:call, alloc!, b, recursive_handler.(ex.args[3:end])...))
                 elseif ex.args[1] == Symbol("@no_escape")
                     # If we encounter nested @no_escape blocks, we'll leave them alone
@@ -62,7 +65,7 @@ function _no_escape_macro(b_ex, _ex, __module__)
     ex = recursive_handler(_ex)
     quote
         $e_b = $(esc(b_ex))
-        $(esc(tsk)) = current_task()
+        $(esc(tsk)) = get_task()
         local cp = checkpoint_save($e_b)
         local res = $(esc(ex))
         checkpoint_restore!(cp)
@@ -83,6 +86,10 @@ function alloc!(buf, ::Type{T}, s::Vararg{Integer, N}) where {T, N}
     ptr::Ptr{T} = alloc_ptr!(buf, prod(s) * sizeof(T))
     PtrArray(ptr, s)
 end
+
+
+malloc(n::Integer) = Libc.malloc(Int(n))
+free(p::Ptr) = Libc.free(p)
 
 
 end
