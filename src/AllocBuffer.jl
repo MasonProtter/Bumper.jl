@@ -54,7 +54,7 @@ end
 function alloc_ptr!(b::AllocBuffer, sz::Int)::Ptr{Cvoid}
     ptr = pointer(b.buf) + b.offset
     b.offset += sz
-    # b.offset > sizeof(b.buf) && oom_error()
+    b.offset > sizeof(b.buf) && oom_error()
     ptr
 end
 
