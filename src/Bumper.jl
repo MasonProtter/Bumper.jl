@@ -4,90 +4,6 @@ export SlabBuffer, AllocBuffer, @alloc, default_buffer, @no_escape, with_buffer
 using StrideArraysCore
 
 
-
-"""
-    mutable struct SlabBuffer{SlabSize}
-
-A slab-based bump allocator which can dynamically grow to hold an arbitrary amount of memory.
-Small allocations live within a specific slab of memory, and if that slab fills up, a new slab
-is allocated and future allocations happen on that slab. Small allocations are stored in slabs
-of size `SlabSize` bytes, and the list of live slabs are tracked in the `slabs` field.
-Allocations which are too large to fit into one slab are stored and tracked in the `custom_slabs`
-field.
-
-`SlabBuffer`s are nearly as fast as stack allocation (typically up to within a couple of nanoseconds) for typical
-use. One potential performance pitfall is if that `SlabBuffer`'s current position is at the end of a slab, then
-the next allocation will be slow because it requires a new slab to be created. This means that if you do something
-like
-
-    buf = SlabBuffer{N}()
-    @no_escape buf begin
-        x = @alloc(Int8, N-1) # Almost fill up the first slab
-        for i in 1:1000
-            @no_escape buf begin
-                y = @alloc(Int8, 10) # Allocate a new slab because there's no room
-                f(y)
-            end # At the end of this block, we delete the new slab because it's not needed.
-        end
-    end 
-
-then the inner loop will run slower than normal because at each iteration, a new slab of size `N` bytes must be freshly
-allocated. This should be a rare occurance, but is possible to encounter.
-
-Do not manipulate the fields of a SlabBuffer that is in use.
-"""
-mutable struct SlabBuffer{SlabSize}
-    current      ::Ptr{Cvoid}
-    slab_end     ::Ptr{Cvoid}
-    slabs        ::Vector{Ptr{Cvoid}}
-    custom_slabs ::Vector{Ptr{Cvoid}}
-    function SlabBuffer{_SlabSize}() where {_SlabSize}
-        SlabSize = convert(Int, _SlabSize)
-        current  = malloc(SlabSize)
-        slab_end = current + SlabSize
-        slabs    = [current]
-        custom_slabs = Ptr{Cvoid}[]
-        
-        finalizer(new{SlabSize}(current, slab_end, slabs, custom_slabs)) do buf
-            for ptr ∈ buf.slabs
-                free(ptr)
-            end
-            for ptr ∈ buf.custom_slabs
-                free(ptr)
-            end
-            nothing
-        end
-    end
-end
-@doc """
-    SlabBuffer{SlabSize}()
-
-Create a slab allocator whose slabs are of size `SlabSize`
-""" SlabBuffer{SlabSize}()
-
-
-
-
-#using mimalloc_jll
-# malloc(n::Int) = @ccall mimalloc_jll.libmimalloc.malloc(n::Int)::Ptr{Cvoid}
-# free(p::Ptr{Cvoid}) = @ccall mimalloc_jll.libmimalloc.free(p::Ptr{Cvoid})::Nothing
-malloc(n::Int) = Libc.malloc(n)
-free(p::Ptr{Cvoid}) = Libc.free(p)
-
-
-"""
-    AllocBuffer{StorageType}
-
-This is a simple bump allocator that could be used to store a fixed amount of memory of type
-`StorageType`, so long as `::StoreageType` supports `pointer`, and `sizeof`.
-
-Do not manually manipulate the fields of an AllocBuffer that is in use.
-"""
-mutable struct AllocBuffer{Store}
-    buf::Store
-    offset::UInt
-end
-
 """
     @no_escape([buf=default_buffer()], expr)
 
@@ -177,6 +93,7 @@ Example:
 """
 function with_buffer end
 
+
 allow_ptr_array_to_escape() = false
 
 """
@@ -201,6 +118,7 @@ which is a safer and more structured way of doing the same thing.
 """
 function checkpoint_save end
 
+
 """
     Bumper.checkpoint_restore!(cp)
 
@@ -213,17 +131,19 @@ which is a safer and more structured way of doing the same thing.
 """
 function checkpoint_restore! end
 
-
-
-## Buffer implementations
-# ------------------------------------------------------
-include("SlabBuffer.jl")
-include("AllocBuffer.jl")
-
-
 ## Private
 # ------------------------------------------------------
-include("internals.jl")
+include("internals.jl") # module Internals
+
+
+## Allocator implementations
+# ------------------------------------------------------
+include("SlabBuffer.jl")
+import .SlabBufferImpl: SlabBuffer
+
+include("AllocBuffer.jl")
+import .AllocBufferImpl: AllocBuffer
+
 
 
 end # Bumper

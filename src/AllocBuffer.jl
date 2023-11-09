@@ -1,7 +1,6 @@
 module AllocBufferImpl
 
 import Bumper:
-    AllocBuffer,
     alloc_ptr!,
     checkpoint_save,
     checkpoint_restore!,
@@ -10,11 +9,25 @@ import Bumper:
     with_buffer
 
 const default_buffer_size = 128_000
-const default_buffer_key = gensym(:buffer)
+
+"""
+    AllocBuffer{StorageType}
+
+This is a simple bump allocator that could be used to store a fixed amount of memory of type
+`StorageType`, so long as `::StoreageType` supports `pointer`, and `sizeof`.
+
+Do not manually manipulate the fields of an AllocBuffer that is in use.
+"""
+mutable struct AllocBuffer{Store}
+    buf::Store
+    offset::UInt
+end
 
 AllocBuffer(max_size::Int) = AllocBuffer(Vector{UInt8}(undef, max_size), UInt(0))
 AllocBuffer(storage) = AllocBuffer(storage, UInt(0))
 AllocBuffer() = AllocBuffer(Vector{UInt8}(undef, UInt(default_buffer_size)))
+
+const default_buffer_key = gensym(:buffer)
 
 function default_buffer(::Type{AllocBuffer})
     get!(() -> AllocBuffer(), task_local_storage(), default_buffer_key)::AllocBuffer{Vector{UInt8}}

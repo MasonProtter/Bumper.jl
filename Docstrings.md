@@ -38,18 +38,18 @@ Do not allow any references to these arrays to escape the enclosing `@no_escape`
 
 ---------------------------------------
 ```
+default_buffer(::Type{SlabBuffer}) -> SlabBuffer{16_384}
+```
+
+Return the current task-local default `SlabBuffer`, if one does not exist in the current task, it will create one automatically. This currently only works with `SlabBuffer{16_384}`, and you cannot adjust the slab size it creates.
+
+```
 default_buffer() -> SlabBuffer{16_384}
 ```
 
 Return the current task-local default `SlabBuffer`, if one does not exist in the current task, it will create one automatically. This currently only works with `SlabBuffer{16_384}`, and you cannot adjust the slab size it creates.
 
 ---------------------------------------
-```
-SlabBuffer()
-```
-
-Create a slab allocator whose slabs are of size 16384
-
 ```
 mutable struct SlabBuffer{SlabSize}
 ```
@@ -76,10 +76,10 @@ then the inner loop will run slower than normal because at each iteration, a new
 Do not manipulate the fields of a SlabBuffer that is in use.
 
 ```
-SlabBuffer{SlabSize}()
+SlabBuffer()
 ```
 
-Create a slab allocator whose slabs are of size `SlabSize`
+Create a slab allocator whose slabs are of size 16384
 
 ---------------------------------------
 ```
