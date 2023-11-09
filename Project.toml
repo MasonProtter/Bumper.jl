@@ -19,6 +19,7 @@ julia = "1.6"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+StaticCompiler = "81625895-6c0f-48fc-b932-11a18313743c"
 
 [targets]
 test = ["Test"]
