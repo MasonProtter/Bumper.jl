@@ -3,6 +3,7 @@
 - [Concurrency and parallelism](#concurrency-and-parallelism)
 - [Allocators provided by Bumper](#allocators-provided-by-bumper)
 - [Creating your own allocator types](#creating-your-own-allocator-types)
+- [Usage with StaticCompiler.jl](#usage-with-staticcompiler-jl)
 - [Docstrings](Docstrings.md)
 
 
