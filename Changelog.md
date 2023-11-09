@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 0.5.1
+
++ Added a package extension (only works on julia versions 1.9+) which lets the `AllocBuffer` work under
+StaticCompiler.jl, and defines methods like `AllocBuffer(::Type{MallocVector}, n::Int)` and `free(AllocBuffer{<:MallocArray})` for convenience. 
+
 ## Version 0.5.0
 
 + The default allocator is now something known as a *slab* allocator `SlabBuffer`. This comes with a very *slight* performance hit relative to `AllocBuffer`, but the advantage is that it scales very well from handling small allocations all the way up to handling very large allocations. It will only run out of memory when your computer runs out of memory, but it also won't hog memory that's not in use.  It is also be much faster to construct than the old default `AllocBuffer`. 
