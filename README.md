@@ -51,7 +51,7 @@ and the lifetime of those allocations is the block. **This is important.** Once 
 will reset its internal state to the position it had before the block started, potentially overwriting or freeing any 
 arrays which were created in the block.
 
-Let's compare the performance of =f= to the equivalent with an intermediate heap allocation:
+Let's compare the performance of `f` to the equivalent with an intermediate heap allocation:
 
 ``` julia
 using BenchmarkTools
