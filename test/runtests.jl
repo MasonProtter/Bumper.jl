@@ -56,6 +56,16 @@ end
     @test sb.current == sb.slabs[1]
     @test sb.slab_end == sb.current + 16_384
 
+    
+    @no_escape sb begin
+        current = sb.current
+        p = @alloc_ptr(10)
+        @test p == current 
+        @test sb.current == p + 10
+        p2 = @alloc_ptr(100_000)
+        @test p2 == sb.custom_slabs[end]
+    end
+    
     try
         @no_escape sb begin
             x = @alloc(Int8, 16_383)

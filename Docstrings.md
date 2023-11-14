@@ -32,9 +32,18 @@ end
 @alloc(T, n::Int...) -> PtrArray{T, length(n)}
 ```
 
-This can only be used inside a `@no_escape` block to allocate a `PtrArray` whose dimensions are determined by `n`. The memory used to allocate this array will come from the buffer associated with the enclosing `@no_escape` block.
+This can be used inside a `@no_escape` block to allocate a `PtrArray` whose dimensions are determined by `n`. The memory used to allocate this array will come from the buffer associated with the enclosing `@no_escape` block.
 
-Do not allow any references to these arrays to escape the enclosing `@no_escape` block, and do not pass these arrays to concurrent tasks unless that task is guaranteed to terminate before the `@no_escape` block ends. Any array allocated in this way which is found outside of it's parent `@no_escape` block has undefined contents.
+Do not allow any references to these arrays to escape the enclosing `@no_escape` block, and do not pass these arrays to concurrent tasks unless that task is guaranteed to terminate before the `@no_escape` block ends. Any array allocated in this way which is found outside of its parent `@no_escape` block has undefined contents, and writing to this pointer will have undefined behaviour.
+
+---------------------------------------
+```
+@alloc_ptr(n::Integer) -> Ptr{Nothing}
+```
+
+This can be used inside a `@no_escape` block to allocate a pointer whose dimensions are determined by `n`. The memory used to allocate this array will come from the buffer associated with the enclosing `@no_escape` block.
+
+Do not allow any references to these pointers to escape the enclosing `@no_escape` block, and do not pass these pointers to concurrent tasks unless that task is guaranteed to terminate before the `@no_escape` block ends. Any pointer allocated in this way which is found outside of its parent `@no_escape` block has undefined contents, and writing to this pointer will have undefined behaviour.
 
 ---------------------------------------
 ```
@@ -76,10 +85,16 @@ then the inner loop will run slower than normal because at each iteration, a new
 Do not manipulate the fields of a SlabBuffer that is in use.
 
 ```
-SlabBuffer()
+SlabBuffer{SlabSize}(;finalize::Bool = true)
 ```
 
-Create a slab allocator whose slabs are of size 16384
+Create a slab allocator whose slabs are of size `SlabSize`. If you set the `finalize` keyword argument to `false`, then you will need to explicitly call `Bumper.free()` when you are done with a `SlabBuffer`. This is not recommended.
+
+```
+SlabBuffer(;finalize::Bool = true)
+```
+
+Create a slab allocator whose slabs are of size 16384. If you set the `finalize` keyword argument to `false`, then you will need to explicitly call `Bumper.free()` when you are done with a `SlabBuffer`. This is not recommended.
 
 ---------------------------------------
 ```

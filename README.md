@@ -20,7 +20,7 @@ If you use Bumper.jl, please consider submitting a sample of your use-case so I 
 ## Basics 
 
 Bumper.jl has a task-local default allocator, using a *slab allocation strategy* which can dynamically
-grow to arbitary sizes. 
+grow to arbitary sizes.
 
 The simplest way to use Bumper is to rely on its default buffer implicitly like so:
 
@@ -31,7 +31,7 @@ using StrideArrays # Not necessary, but can make operations like broadcasting wi
 function f(x)
     # Set up a scope where memory may be allocated, and does not escape:
     @no_escape begin
-        # Allocate a `PtrArray` from StrideArraysCore.jl using memory from the default buffer.
+        # Allocate a `PtrArray` (see StrideArraysCore.jl) using memory from the default buffer.
         y = @alloc(eltype(x), length(x))
         # Now do some stuff with that vector:
         y .= x .+ 1
@@ -50,6 +50,9 @@ created by `@alloc`. That is, you are *only* allowed to do intermediate `@alloc`
 and the lifetime of those allocations is the block. **This is important.** Once a `@no_escape` block finishes running, it
 will reset its internal state to the position it had before the block started, potentially overwriting or freeing any 
 arrays which were created in the block.
+
+In addition to `@alloc` for creating arrays, you can use `@alloc_ptr(n)` to get an `n`-byte pointer (of type
+`Ptr{Cvoid}`) directly.
 
 Let's compare the performance of `f` to the equivalent with an intermediate heap allocation:
 
@@ -373,7 +376,7 @@ function times_table(argc::Int, argv::Ptr{Ptr{UInt8}})
     cols = argparse(Int64, argv, 3)            # Second command-line argument
 
     buf = AllocBuffer(MallocVector)
-	@no_escape buf begin
+    @no_escape buf begin
         M = @alloc(Int, rows, cols)
         for i=1:rows
             for j=1:cols

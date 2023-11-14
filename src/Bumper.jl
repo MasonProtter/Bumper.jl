@@ -1,6 +1,6 @@
 module Bumper
 
-export SlabBuffer, AllocBuffer, @alloc, default_buffer, @no_escape, with_buffer
+export SlabBuffer, AllocBuffer, @alloc, @alloc_ptr, default_buffer, @no_escape, with_buffer
 using StrideArraysCore
 
 
@@ -34,17 +34,33 @@ macro no_escape end
 """
     @alloc(T, n::Int...) -> PtrArray{T, length(n)}
 
-This can only be used inside a `@no_escape` block to allocate a `PtrArray` whose dimensions
+This can be used inside a `@no_escape` block to allocate a `PtrArray` whose dimensions
 are determined by `n`. The memory used to allocate this array will come from the buffer
 associated with the enclosing `@no_escape` block.
 
 Do not allow any references to these arrays to escape the enclosing `@no_escape` block, and do
 not pass these arrays to concurrent tasks unless that task is guaranteed to terminate before the
-`@no_escape` block ends. Any array allocated in this way which is found outside of it's parent
-`@no_escape` block has undefined contents.
+`@no_escape` block ends. Any array allocated in this way which is found outside of its parent
+`@no_escape` block has undefined contents, and writing to this pointer will have undefined behaviour.
 """
 macro alloc(args...)
     error("The @alloc macro may only be used inside of a @no_escape block.")
+end
+
+"""
+    @alloc_ptr(n::Integer) -> Ptr{Nothing}
+
+This can be used inside a `@no_escape` block to allocate a pointer whose dimensions
+are determined by `n`. The memory used to allocate this array will come from the buffer
+associated with the enclosing `@no_escape` block.
+
+Do not allow any references to these pointers to escape the enclosing `@no_escape` block, and do
+not pass these pointers to concurrent tasks unless that task is guaranteed to terminate before the
+`@no_escape` block ends. Any pointer allocated in this way which is found outside of its parent
+`@no_escape` block has undefined contents, and writing to this pointer will have undefined behaviour.
+"""
+macro alloc_ptr(args...)
+    error("The @alloc_ptr macro may only be used inside of a @no_escape block.")
 end
 
 """
