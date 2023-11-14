@@ -40,6 +40,10 @@ function _no_escape_macro(b_ex, _ex, __module__)
                     Expr(:block,
                          :($tsk === $get_task() || $tsk_err()),
                          Expr(:call, alloc!, b, recursive_handler.(ex.args[3:end])...))
+                elseif ex.args[1] == Symbol("@alloc_ptr")
+                    Expr(:block,
+                         :($tsk === $get_task() || $tsk_err()),
+                         Expr(:call, alloc_ptr!, b, recursive_handler.(ex.args[3:end])...))
                 elseif ex.args[1] == Symbol("@no_escape")
                     # If we encounter nested @no_escape blocks, we'll leave them alone
                     ex
