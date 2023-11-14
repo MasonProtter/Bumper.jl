@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 0.5.3
+
++ Added `@alloc_ptr(n)` which is like `@alloc` except it returns an `n` byte pointer directly instead of an array.
+
+## Version 0.5.2
+
 ## Version 0.5.1
 
 + Added a package extension (only works on julia versions 1.9+) which lets the `AllocBuffer` work under
