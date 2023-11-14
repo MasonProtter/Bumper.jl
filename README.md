@@ -52,7 +52,7 @@ will reset its internal state to the position it had before the block started, p
 arrays which were created in the block.
 
 In addition to `@alloc` for creating arrays, you can use `@alloc_ptr(n)` to get an `n`-byte pointer (of type
-`Ptr{Cvoid}`) directly.
+`Ptr{Nothing}`) directly.
 
 Let's compare the performance of `f` to the equivalent with an intermediate heap allocation:
 
