@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 0.5.4
+
++ Changed the default size heuristics for `SlabBuffer`, the default slab size is now 1 megabyte, and custom slabs 
+are now created for allocations which are larger than *half* the slab size, rather than larger than the slab size.
++ Changed the default size heuristic for `AllocBuffer`. `AllocBuffer()` now creates a buffer of 1 megabyte capacity.
+
 ## Version 0.5.3
 
 + Added `@alloc_ptr(n)` which is like `@alloc` except it returns an `n` byte pointer directly instead of an array.
