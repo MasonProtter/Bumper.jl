@@ -210,7 +210,7 @@ buffers local to that task or the `default_buffer()`.
 `SlabBuffer` is a slab-based bump allocator which can dynamically grow to hold an arbitrary amount of memory.
 Small allocations from a `SlabBuffer` will live within a specific slab of memory, and if that slab fills up, 
 a new slab is allocated and future allocations will then happen on that slab. Small allocations are stored 
-in slabs of size `SlabSize` bytes (default `16` kilobytes), and the list of live slabs are tracked in a field called 
+in slabs of size `SlabSize` bytes (default 1 megabyte), and the list of live slabs are tracked in a field called 
 `slabs`. Allocations which are too large to fit into one slab are stored and tracked in a field called
 `custom_slabs`.
 
@@ -222,14 +222,16 @@ like
 ``` julia
 buf = SlabBuffer{N}()
 @no_escape buf begin
-    x = @alloc(Int8, N-1) # Almost fill up the first slab
+    @alloc(Int8, N÷2 - 1) # Take up just under half the first slab
+    @alloc(Int8, N÷2 - 1) # Take up another half of the first slab
+    # Now buf should be practically out of room. 
     for i in 1:1000
         @no_escape buf begin
-            y = @alloc(Int8, 10) # Allocate a new slab because there's no room
+            y = @alloc(Int8, 10) # This will allocate a new slab because there's no room
             f(y)
         end # At the end of this block, we delete the new slab because it's not needed.
     end
-end 
+end
 ```
 
 then the inner loop will run slower than normal because at each iteration, a new slab of size `N` bytes must be freshly
@@ -242,7 +244,7 @@ Do not manipulate the fields of a SlabBuffer that is in use.
 
 `AllocBuffer{StorageType}` is a very simple bump allocator that could be used to store a fixed amount of memory of type
 `StorageType`, so long as `::StoreageType` supports `pointer`, and `sizeof`. If it runs out of memory to allocate, an error
-will be thrown. By default, `AllocBuffer` stores a `Vector{UInt8}` of `128` kilobytes.
+will be thrown. By default, `AllocBuffer` stores a `Vector{UInt8}` of `1` megabyte.
 
 Allocations using `AllocBuffer`s should be just as fast as stack allocation.
 

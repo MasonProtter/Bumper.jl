@@ -37,17 +37,18 @@ end
     @no_escape sb begin
         p = sb.current
         e = sb.slab_end
-        x = @alloc(Int8, 16_383)
+        x = @alloc(Int8, 16_384 ÷ 2 - 1)
+        x = @alloc(Int8, 16_384 ÷ 2 - 1)
         for i ∈ 1:5
             @no_escape sb begin
-                @test sb.current == p + 16_383
+                @test sb.current == p + 16_382
                 @test p <= sb.current <= e
                 y = @alloc(Int, 10)
                 @test !(p <= sb.current <= e)
             end
         end
         z = @alloc(Int, 100_000)
-        @test sb.current == p + 16_383
+        @test sb.current == p + 16_382
         @test sb.slab_end == e
         @test !(p <= pointer(z) <= e)
         @test pointer(z) == sb.custom_slabs[end]

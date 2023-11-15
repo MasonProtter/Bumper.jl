@@ -8,7 +8,7 @@ import Bumper:
     reset_buffer!,
     with_buffer
 
-const default_buffer_size = 128_000
+const default_buffer_size = 1_048_576
 
 """
     AllocBuffer{StorageType}
@@ -25,10 +25,24 @@ end
 
 AllocBuffer(max_size::Int) = AllocBuffer(Vector{UInt8}(undef, max_size), UInt(0))
 AllocBuffer(storage) = AllocBuffer(storage, UInt(0))
+
+"""
+    AllocBuffer() -> AllocBuffer{Vector{UInt8}}
+
+Create an `AllocBuffer` which can hold at most $default_buffer_size bytes.
+"""
 AllocBuffer() = AllocBuffer(Vector{UInt8}(undef, UInt(default_buffer_size)))
 
 const default_buffer_key = gensym(:buffer)
 
+
+"""
+    default_buffer(::Type{AllocBuffer}) -> AllocBuffer{Vector{UInt8}}
+
+Return the current task-local default `AllocBuffer`, if one does not exist in the current task,
+it will create one automatically. This currently can only create `AllocBuffer{Vector{UInt8}}`,
+and you cannot adjust the memory size it creates ($default_buffer_size bytes).
+"""
 function default_buffer(::Type{AllocBuffer})
     get!(() -> AllocBuffer(), task_local_storage(), default_buffer_key)::AllocBuffer{Vector{UInt8}}
 end
