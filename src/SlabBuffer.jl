@@ -9,7 +9,7 @@ import Bumper:
     with_buffer
 
 import Bumper.Internals: malloc, free
-const default_slab_size = 16_384
+const default_slab_size = 1_048_576
 
 """
     mutable struct SlabBuffer{SlabSize}
@@ -21,6 +21,8 @@ of size `SlabSize` bytes, and the list of live slabs are tracked in the `slabs` 
 Allocations which are too large to fit into one slab are stored and tracked in the `custom_slabs`
 field.
 
+The default slab size is $default_slab_size bytes.
+
 `SlabBuffer`s are nearly as fast as stack allocation (typically up to within a couple of nanoseconds) for typical
 use. One potential performance pitfall is if that `SlabBuffer`'s current position is at the end of a slab, then
 the next allocation will be slow because it requires a new slab to be created. This means that if you do something
@@ -28,10 +30,12 @@ like
 
     buf = SlabBuffer{N}()
     @no_escape buf begin
-        x = @alloc(Int8, N-1) # Almost fill up the first slab
+        @alloc(Int8, N÷2 - 1) # Take up just under half the first slab
+        @alloc(Int8, N÷2 - 1) # Take up another half of the first slab
+        # Now buf should be practically out of room. 
         for i in 1:1000
             @no_escape buf begin
-                y = @alloc(Int8, 10) # Allocate a new slab because there's no room
+                y = @alloc(Int8, 10) # This will allocate a new slab because there's no room
                 f(y)
             end # At the end of this block, we delete the new slab because it's not needed.
         end
@@ -91,15 +95,23 @@ end
 const default_buffer_key = gensym(:slab_buffer)
 
 """
-    default_buffer(::Type{SlabBuffer}) -> SlabBuffer{16_384}
+    default_buffer(::Type{SlabBuffer}) -> SlabBuffer{$default_slab_size}
 
 Return the current task-local default `SlabBuffer`, if one does not exist in the current task, it will
-create one automatically. This currently only works with `SlabBuffer{16_384}`, and you cannot adjust
-the slab size it creates.
+create one automatically. This currently can only create `SlabBuffer{$default_slab_size}`, and you
+cannot adjust the slab size it creates.
 """
 function default_buffer(::Type{SlabBuffer})
     get!(() -> SlabBuffer{default_slab_size}(), task_local_storage(), default_buffer_key)::SlabBuffer{default_slab_size}
 end
+
+"""
+    default_buffer() -> SlabBuffer{$default_slab_size}
+
+Return the current task-local default `SlabBuffer`, if one does not exist in the current task, it will
+create one automatically. This currently only works with `SlabBuffer{$default_slab_size}`, and you
+cannot adjust the slab size it creates.
+"""
 default_buffer() = default_buffer(SlabBuffer)
 
 function alloc_ptr!(buf::SlabBuffer{SlabSize}, sz::Int)::Ptr{Cvoid} where {SlabSize}
@@ -114,7 +126,7 @@ function alloc_ptr!(buf::SlabBuffer{SlabSize}, sz::Int)::Ptr{Cvoid} where {SlabS
 end
 
 @noinline function add_new_slab!(buf::SlabBuffer{SlabSize}, sz::Int)::Ptr{Cvoid} where {SlabSize}
-    if sz > SlabSize
+    if sz > (SlabSize ÷ 2)
         custom = malloc(sz)
         push!(buf.custom_slabs, custom)
         custom

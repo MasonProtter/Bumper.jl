@@ -63,13 +63,6 @@ macro alloc_ptr(args...)
     error("The @alloc_ptr macro may only be used inside of a @no_escape block.")
 end
 
-"""
-    default_buffer() -> SlabBuffer{16_384}
-
-Return the current task-local default `SlabBuffer`, if one does not exist in the current task, it will
-create one automatically. This currently only works with `SlabBuffer{16_384}`, and you cannot adjust
-the slab size it creates.
-"""
 function default_buffer end
 
 """
@@ -92,7 +85,8 @@ function alloc_ptr! end
 """
     with_buffer(f, buf)
 
-Execute the function `f()` in a context where `default_buffer()` will return `buf` instead of the normal `default_buffer`. This currently only works with `SlabBuffer{16_384}`, and `AllocBuffer{Vector{UInt8}}`.
+Execute the function `f()` in a context where `default_buffer()` will return `buf` instead of the normal
+`default_buffer`. This currently only works with `SlabBuffer{1_048_576}`, and `AllocBuffer{Vector{UInt8}}`.
 
 Example:
 
