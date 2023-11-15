@@ -47,16 +47,22 @@ Do not allow any references to this pointer to escape the enclosing `@no_escape`
 
 ---------------------------------------
 ```
-default_buffer(::Type{SlabBuffer}) -> SlabBuffer{16_384}
+default_buffer(::Type{SlabBuffer}) -> SlabBuffer{1048576}
 ```
 
-Return the current task-local default `SlabBuffer`, if one does not exist in the current task, it will create one automatically. This currently only works with `SlabBuffer{16_384}`, and you cannot adjust the slab size it creates.
+Return the current task-local default `SlabBuffer`, if one does not exist in the current task, it will create one automatically. This currently can only create `SlabBuffer{1048576}`, and you cannot adjust the slab size it creates.
 
 ```
-default_buffer() -> SlabBuffer{16_384}
+default_buffer() -> SlabBuffer{1048576}
 ```
 
-Return the current task-local default `SlabBuffer`, if one does not exist in the current task, it will create one automatically. This currently only works with `SlabBuffer{16_384}`, and you cannot adjust the slab size it creates.
+Return the current task-local default `SlabBuffer`, if one does not exist in the current task, it will create one automatically. This currently only works with `SlabBuffer{1048576}`, and you cannot adjust the slab size it creates.
+
+```
+default_buffer(::Type{AllocBuffer}) -> AllocBuffer{Vector{UInt8}}
+```
+
+Return the current task-local default `AllocBuffer`, if one does not exist in the current task, it will create one automatically. This currently can only create `AllocBuffer{Vector{UInt8}}`, and you cannot adjust the memory size it creates (1048576 bytes).
 
 ---------------------------------------
 ```
@@ -65,15 +71,19 @@ mutable struct SlabBuffer{SlabSize}
 
 A slab-based bump allocator which can dynamically grow to hold an arbitrary amount of memory. Small allocations live within a specific slab of memory, and if that slab fills up, a new slab is allocated and future allocations happen on that slab. Small allocations are stored in slabs of size `SlabSize` bytes, and the list of live slabs are tracked in the `slabs` field. Allocations which are too large to fit into one slab are stored and tracked in the `custom_slabs` field.
 
+The default slab size is 1048576 bytes.
+
 `SlabBuffer`s are nearly as fast as stack allocation (typically up to within a couple of nanoseconds) for typical use. One potential performance pitfall is if that `SlabBuffer`'s current position is at the end of a slab, then the next allocation will be slow because it requires a new slab to be created. This means that if you do something like
 
 ```
 buf = SlabBuffer{N}()
 @no_escape buf begin
-    x = @alloc(Int8, N-1) # Almost fill up the first slab
+    @alloc(Int8, N÷2 - 1) # Take up just under half the first slab
+    @alloc(Int8, N÷2 - 1) # Take up another half of the first slab
+    # Now buf should be practically out of room. 
     for i in 1:1000
         @no_escape buf begin
-            y = @alloc(Int8, 10) # Allocate a new slab because there's no room
+            y = @alloc(Int8, 10) # This will allocate a new slab because there's no room
             f(y)
         end # At the end of this block, we delete the new slab because it's not needed.
     end
@@ -94,7 +104,7 @@ Create a slab allocator whose slabs are of size `SlabSize`. If you set the `fina
 SlabBuffer(;finalize::Bool = true)
 ```
 
-Create a slab allocator whose slabs are of size 16384. If you set the `finalize` keyword argument to `false`, then you will need to explicitly call `Bumper.free()` when you are done with a `SlabBuffer`. This is not recommended.
+Create a slab allocator whose slabs are of size 1048576. If you set the `finalize` keyword argument to `false`, then you will need to explicitly call `Bumper.free()` when you are done with a `SlabBuffer`. This is not recommended.
 
 ---------------------------------------
 ```
@@ -108,7 +118,7 @@ This resets a buffer to its default state, effectively making it like a freshly 
 with_buffer(f, buf)
 ```
 
-Execute the function `f()` in a context where `default_buffer()` will return `buf` instead of the normal `default_buffer`. This currently only works with `SlabBuffer{16_384}`, and `AllocBuffer{Vector{UInt8}}`.
+Execute the function `f()` in a context where `default_buffer()` will return `buf` instead of the normal `default_buffer`. This currently only works with `SlabBuffer{1_048_576}`, and `AllocBuffer{Vector{UInt8}}`.
 
 Example:
 
