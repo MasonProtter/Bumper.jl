@@ -126,7 +126,7 @@ function alloc_ptr!(buf::SlabBuffer{SlabSize}, sz::Int)::Ptr{Cvoid} where {SlabS
 end
 
 @noinline function add_new_slab!(buf::SlabBuffer{SlabSize}, sz::Int)::Ptr{Cvoid} where {SlabSize}
-    if sz > (SlabSize ÷ 2)
+    if sz >= (SlabSize ÷ 2)
         custom = malloc(sz)
         push!(buf.custom_slabs, custom)
         custom
