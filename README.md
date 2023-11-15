@@ -356,19 +356,11 @@ You may also want to implemet `Bumper.reset_buffer!` for refreshing you allocato
 <details><summary>Click me!</summary>
 <p>
 
-If you're feeling adventurous and want to try and take advantage of Bumper.jl for your memory
-management needs in [StaticCompiler.jl](https://github.com/tshort/StaticCompiler.jl), you can 
-currently do that only on julia versions 1.9 and newer, and the `SlabBuffer` will not work, 
-but the `AllocBuffer` will. There is are conditionally defined methods
-
-``` julia
-AllocBuffer(::Type{MallocVector}, n::Int = 128_000) = AllocBuffer(MallocVector{UInt8}(undef, n))
-free(buf::AllocBuffer{<:MallocArray}) = free(buf.buf)
-```
-where `MallocVector` and `free` both come from the 
-[StaticTools.jl](https://github.com/brenhinkeller/StaticTools.jl) package (a dependancy of 
-StaticCompiler.jl). With those, and some `StaticCompiler.@device_override`s, the code like the 
-following 'should' work (insofar as StaticCompiler.jl can be relied on to work):
+Bumper.jl is in the process of becoming a dependancy of 
+[StaticTools.jl](https://github.com/brenhinkeller/StaticTools.jl) (and thus 
+[StaticCompiler.jl](https://github.com/tshort/StaticCompiler.jl)), which extends Bumper.jl 
+with a new buffer type, `MallocSlabBuffer` which is like `SlabBuffer` but designed to work
+without needing Julia's runtime at all. This allows for code like the following
 
 ``` julia
 using Bumper, StaticTools
@@ -377,7 +369,7 @@ function times_table(argc::Int, argv::Ptr{Ptr{UInt8}})
     rows = argparse(Int64, argv, 2)            # First command-line argument
     cols = argparse(Int64, argv, 3)            # Second command-line argument
 
-    buf = AllocBuffer(MallocVector)
+    buf = MallocSlabBuffer()
     @no_escape buf begin
         M = @alloc(Int, rows, cols)
         for i=1:rows
@@ -409,6 +401,7 @@ shell> ./times_table 12, 7
 11  22  33  44  55  66  77
 12  24  36  48  60  72  84
 ```
+
 
 
 </details>

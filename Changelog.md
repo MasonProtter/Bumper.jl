@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 0.6.0
+
++ Removed the package extension which was added in v0.5.1, because we plan on making Bumper.jl
+a direct dependancy of StaticTools.jl
+
 ## Version 0.5.4
 
 + Changed the default size heuristics for `SlabBuffer`, the default slab size is now 1 megabyte, and custom slabs 
