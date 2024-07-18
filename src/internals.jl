@@ -1,6 +1,6 @@
 module Internals
 
-using StrideArraysCore
+using UnsafeArrays: UnsafeArrays, UnsafeArray
 import Bumper:
     @no_escape,
     alloc!,
@@ -73,7 +73,7 @@ function _no_escape_macro(b_ex, _ex, __module__)
         local cp = checkpoint_save($e_b)
         local res = $(esc(ex))
         checkpoint_restore!(cp)
-        if res isa PtrArray && !(allow_ptr_array_to_escape())
+        if res isa UnsafeArray && !(allow_ptr_array_to_escape())
            esc_err()
         end
         res
@@ -84,11 +84,11 @@ end
     error("Tried to use @alloc from a different task than its parent @no_escape block, that is not allowed for thread safety reasons. If you really need to do this, see Bumper.alloc instead of @alloc.")
 
 @noinline esc_err() =
-    error("Tried to return a PtrArray from a `no_escape` block. If you really want to do this, evaluate Bumper.allow_ptrarray_to_escape() = true")
+    error("Tried to return a UnsafeArray from a `no_escape` block. If you really want to do this, evaluate Bumper.allow_ptrarray_to_escape() = true")
 
 function alloc!(buf, ::Type{T}, s::Vararg{Integer, N}) where {T, N}
     ptr::Ptr{T} = alloc_ptr!(buf, prod(s) * sizeof(T))
-    PtrArray(ptr, s)
+    UnsafeArray(ptr, s)
 end
 
 

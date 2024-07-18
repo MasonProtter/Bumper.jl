@@ -26,12 +26,11 @@ The simplest way to use Bumper is to rely on its default buffer implicitly like 
 
 ``` julia
 using Bumper
-using StrideArrays # Not necessary, but can make operations like broadcasting with Bumper.jl faster.
 
 function f(x)
     # Set up a scope where memory may be allocated, and does not escape:
     @no_escape begin
-        # Allocate a `PtrArray` (see StrideArraysCore.jl) using memory from the default buffer.
+        # Allocate a `UnsafeVector{eltype(x)}` (see UnsafeArrays.jl) using memory from the default buffer.
         y = @alloc(eltype(x), length(x))
         # Now do some stuff with that vector:
         y .= x .+ 1
@@ -157,7 +156,6 @@ an error if you overfill them.
   *block to escape the block.* Doing so will cause incorrect results.
 - If you accidentally overfill a buffer, via e.g. a memory leak and need to reset the buffer, use
   `Bumper.reset_buffer!` to do this.
-- In order to be lightweight, Bumper.jl only depends on [StrideArraysCore.jl](https://github.com/JuliaSIMD/StrideArraysCore.jl), not the full [StrideArrays.jl](https://github.com/JuliaSIMD/StrideArrays.jl), so if you need some of the more advanced functionality from StrideArrays.jl itself, you'll need to do `using StrideArrays` separately.
 - You are not allowed to use `return` or `@goto` inside a `@no_escape` block, since this could compromise the cleanup it performs after the block finishes.
 
 

@@ -18,7 +18,7 @@ Example:
 function f(x::Vector{Int})
     # Set up a scope where memory may be allocated, and does not escape:
     @no_escape begin
-        # Allocate a `PtrArray` from StrideArraysCore.jl using memory from the default buffer.
+        # Allocate a `UnsafeArray` from UnsafeArrays.jl using memory from the default buffer.
         y = @alloc(Int, length(x))
         # Now do some stuff with that vector:
         y .= x .+ 1
@@ -29,10 +29,10 @@ end
 
 ---------------------------------------
 ```
-@alloc(T, n::Int...) -> PtrArray{T, length(n)}
+@alloc(T, n::Int...) -> UnsafeArray{T, length(n)}
 ```
 
-This can be used inside a `@no_escape` block to allocate a `PtrArray` whose dimensions are determined by `n`. The memory used to allocate this array will come from the buffer associated with the enclosing `@no_escape` block.
+This can be used inside a `@no_escape` block to allocate a `UnsafeArray` whose dimensions are determined by `n`. The memory used to allocate this array will come from the buffer associated with the enclosing `@no_escape` block.
 
 Do not allow any references to this array to escape the enclosing `@no_escape` block, and do not pass these arrays to concurrent tasks unless that task is guaranteed to terminate before the `@no_escape` block ends. Any array allocated in this way which is found outside of its parent `@no_escape` block has undefined contents, and writing to this pointer will have undefined behaviour.
 
@@ -146,7 +146,7 @@ Take a pointer which can store at least `n` bytes from the allocator `b`.
 
 ---------------------------------------
 ```
-Bumper.alloc!(b, ::Type{T}, n::Int...) -> PtrArray{T, length(n)}
+Bumper.alloc!(b, ::Type{T}, n::Int...) -> UnsafeArray{T, length(n)}
 ```
 
 Function-based alternative to `@alloc` which allocates onto a specified allocator `b`. You must obey all the rules from `@alloc`, but you can use this outside of the lexical scope of `@no_escape` for specific (but dangerous!) circumstances where you cannot avoid a scope barrier between the two.
