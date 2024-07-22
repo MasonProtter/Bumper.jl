@@ -26,12 +26,11 @@ The simplest way to use Bumper is to rely on its default buffer implicitly like 
 
 ``` julia
 using Bumper
-using StrideArrays # Not necessary, but can make operations like broadcasting with Bumper.jl faster.
 
 function f(x)
     # Set up a scope where memory may be allocated, and does not escape:
     @no_escape begin
-        # Allocate a `PtrArray` (see StrideArraysCore.jl) using memory from the default buffer.
+        # Allocate a `UnsafeVector{eltype(x)}` (see UnsafeArrays.jl) using memory from the default buffer.
         y = @alloc(eltype(x), length(x))
         # Now do some stuff with that vector:
         y .= x .+ 1
@@ -62,14 +61,14 @@ using BenchmarkTools
 ```
 
 ```
-BenchmarkTools.Trial: 10000 samples with 997 evaluations.
- Range (min … max):  20.098 ns … 44.669 ns  ┊ GC (min … max): 0.00% … 0.00%
- Time  (median):     20.802 ns              ┊ GC (median):    0.00%
- Time  (mean ± σ):   20.866 ns ±  0.488 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+BenchmarkTools.Trial: 10000 samples with 995 evaluations.
+ Range (min … max):  28.465 ns … 49.843 ns  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     28.718 ns              ┊ GC (median):    0.00%
+ Time  (mean ± σ):   28.840 ns ±  0.833 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
 
-                 ▄█▃▄▁▄▂ ▁                                     
-  ▂▂▂▂▂▂▂▂▂▂▂▃▃▅▅█████████▆▅▅▄▄▃▃▃▃▃▂▂▂▂▂▂▂▂▂▁▁▂▁▁▂▂▂▂▂▂▂▂▂▂▂ ▃
-  20.1 ns         Histogram: frequency by time        22.2 ns <
+  ▃▄▂▇█▅▆▇▅▂▂▁▁▂▁                                             ▂
+  ██████████████████▆▇▅▄▅▅▅▆▃▄▄▁▃▄▄▃▄▃▁▁▁▁▁▃▁▁▁▄▅▅▅▅▄▄▃▄▁▃▃▃▄ █
+  28.5 ns      Histogram: log(frequency) by time      31.5 ns <
 
  Memory estimate: 0 bytes, allocs estimate: 0.
 ```
@@ -85,19 +84,20 @@ end
 @benchmark g(x) setup=(x = rand(1:10, 30))
 ```
 ```
-BenchmarkTools.Trial: 10000 samples with 994 evaluations.
- Range (min … max):  33.534 ns … 228.017 ns  ┊ GC (min … max): 0.00% … 78.07%
- Time  (median):     36.599 ns               ┊ GC (median):    0.00%
- Time  (mean ± σ):   37.793 ns ±  13.263 ns  ┊ GC (mean ± σ):  2.60% ±  6.18%
+BenchmarkTools.Trial: 10000 samples with 993 evaluations.
+ Range (min … max):  32.408 ns …  64.986 μs  ┊ GC (min … max):  0.00% … 99.87%
+ Time  (median):     37.443 ns               ┊ GC (median):     0.00%
+ Time  (mean ± σ):   55.929 ns ± 651.009 ns  ┊ GC (mean ± σ):  14.68% ±  5.87%
 
-                     ▂▃▅▅▇█▆▅▃                                  
-  ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▂▂▄▆███████████▆▅▃▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ ▃
-  33.5 ns         Histogram: frequency by time         41.2 ns <
+  ▆█▅▃▁▁▁▁                       ▁▁ ▁                       ▂▁ ▁
+  ████████▇██▅▄▃▄▁▁▃▁▁▁▁▁▁▁▁▃▃▁▁██████▇▇▅▁▄▃▃▃▁▁▃▁▁▁▄▃▄▅▄▄▅▇██ █
+  32.4 ns       Histogram: log(frequency) by time       227 ns <
 
  Memory estimate: 304 bytes, allocs estimate: 1.
 ```
 
-Nice speedup!
+So, using Bumper.jl in this benchmark gives a slight speedup relative to regular julia `Vector`s,
+and a major increase in performance *consistency* due to the lack of heap allocations.
 
 However, we can actually go a little faster better if we're okay with manually passing around a buffer.
 The way I invoked `@no_escape` and `@alloc` implicitly used the task's default buffer, and fetching that
@@ -121,14 +121,14 @@ end
 end
 ```
 ```
-BenchmarkTools.Trial: 10000 samples with 998 evaluations.
- Range (min … max):  14.235 ns … 29.103 ns  ┊ GC (min … max): 0.00% … 0.00%
- Time  (median):     14.737 ns              ┊ GC (median):    0.00%
- Time  (mean ± σ):   14.791 ns ±  0.594 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+BenchmarkTools.Trial: 10000 samples with 997 evaluations.
+ Range (min … max):  19.425 ns … 40.367 ns  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     19.494 ns              ┊ GC (median):    0.00%
+ Time  (mean ± σ):   19.620 ns ±  0.983 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
 
-     ▁▁▄   ▅▇█                                                 
-  ▁▂▃███▇▇████▅▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ ▂
-  14.2 ns         Histogram: frequency by time        17.4 ns <
+  █▅                                                          ▁
+  ██▅█▇▄▃▄▄▃▃▃▄▅▄▅▄▅▄▇▇▅▄▄▅▆▅▅▅▄▄▄▁▄▃▃▃▁▁▄▃▃▄▁▁▁▁▃▃▃▁▄▄▃▁▄▃▁▃ █
+  19.4 ns      Histogram: log(frequency) by time      25.3 ns <
 
  Memory estimate: 0 bytes, allocs estimate: 0.
 ```
@@ -157,7 +157,6 @@ an error if you overfill them.
   *block to escape the block.* Doing so will cause incorrect results.
 - If you accidentally overfill a buffer, via e.g. a memory leak and need to reset the buffer, use
   `Bumper.reset_buffer!` to do this.
-- In order to be lightweight, Bumper.jl only depends on [StrideArraysCore.jl](https://github.com/JuliaSIMD/StrideArraysCore.jl), not the full [StrideArrays.jl](https://github.com/JuliaSIMD/StrideArrays.jl), so if you need some of the more advanced functionality from StrideArrays.jl itself, you'll need to do `using StrideArrays` separately.
 - You are not allowed to use `return` or `@goto` inside a `@no_escape` block, since this could compromise the cleanup it performs after the block finishes.
 
 

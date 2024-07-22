@@ -1,7 +1,7 @@
 module Bumper
 
 export SlabBuffer, AllocBuffer, @alloc, @alloc_ptr, default_buffer, @no_escape, with_buffer
-using StrideArraysCore
+using UnsafeArrays: UnsafeArrays, UnsafeArray
 
 
 """
@@ -21,7 +21,7 @@ Example:
     function f(x::Vector{Int})
         # Set up a scope where memory may be allocated, and does not escape:
         @no_escape begin
-            # Allocate a `PtrArray` from StrideArraysCore.jl using memory from the default buffer.
+            # Allocate a `UnsafeArray` from UnsafeArrays.jl using memory from the default buffer.
             y = @alloc(Int, length(x))
             # Now do some stuff with that vector:
             y .= x .+ 1
@@ -32,9 +32,9 @@ Example:
 macro no_escape end
 
 """
-    @alloc(T, n::Int...) -> PtrArray{T, length(n)}
+    @alloc(T, n::Int...) -> UnsafeArray{T, length(n)}
 
-This can be used inside a `@no_escape` block to allocate a `PtrArray` whose dimensions
+This can be used inside a `@no_escape` block to allocate a `UnsafeArray` whose dimensions
 are determined by `n`. The memory used to allocate this array will come from the buffer
 associated with the enclosing `@no_escape` block.
 
@@ -66,7 +66,7 @@ end
 function default_buffer end
 
 """
-    Bumper.alloc!(b, ::Type{T}, n::Int...) -> PtrArray{T, length(n)}
+    Bumper.alloc!(b, ::Type{T}, n::Int...) -> UnsafeArray{T, length(n)}
 
 Function-based alternative to `@alloc` which allocates onto a specified allocator `b`.
 You must obey all the rules from `@alloc`, but you can use this outside of the lexical
