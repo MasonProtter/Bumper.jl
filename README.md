@@ -355,7 +355,7 @@ You may also want to implemet `Bumper.reset_buffer!` for refreshing you allocato
 <details><summary>Click me!</summary>
 <p>
 
-Bumper.jl is in the process of becoming a dependancy of 
+Bumper.jl is a dependency of 
 [StaticTools.jl](https://github.com/brenhinkeller/StaticTools.jl) (and thus 
 [StaticCompiler.jl](https://github.com/tshort/StaticCompiler.jl)), which extends Bumper.jl 
 with a new buffer type, `MallocSlabBuffer` which is like `SlabBuffer` but designed to work
