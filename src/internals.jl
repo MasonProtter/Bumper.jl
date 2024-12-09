@@ -69,14 +69,17 @@ function _no_escape_macro(b_ex, _ex, __module__)
     ex = recursive_handler(_ex)
     quote
         $e_b = $(esc(b_ex))
-        $(esc(tsk)) = get_task()
-        local cp = checkpoint_save($e_b)
-        local res = $(esc(ex))
-        checkpoint_restore!(cp)
-        if res isa UnsafeArray && !(allow_ptr_array_to_escape())
-           esc_err()
-        end
-        res
+        _b = $e_b
+        GC.@preserve _b begin
+            $(esc(tsk)) = get_task()
+            local cp = checkpoint_save($e_b)
+            local res = $(esc(ex))
+            checkpoint_restore!(cp)
+            if res isa UnsafeArray && !(allow_ptr_array_to_escape())
+                esc_err()
+            end
+            res
+        end 
     end
 end
 
