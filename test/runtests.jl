@@ -214,6 +214,6 @@ end
     backing = ones(Float32, 25)
     b = AllocBuffer(backing)
     @test sprint(show, b) == "AllocBuffer{Vector{Float32}}(25)"
-    @test sprint(show,MIME"text/plain"(), b) == "AllocBuffer{Vector{Float32}}(25) (used: 0 bytes, capacity: 25 bytes)"
+    @test sprint(show,MIME"text/plain"(), b) == "AllocBuffer{Vector{Float32}}(25) (used: 0 bytes, capacity: 100 bytes)"
 
 end

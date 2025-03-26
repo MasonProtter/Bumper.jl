@@ -88,7 +88,7 @@ end
 
 # 3-arg show can use non-julia syntax to surface more information
 function Base.show(io::IO, ::MIME"text/plain", b::AllocBuffer)
-    cap = length(b.buf)
+    cap = length(b.buf) * sizeof(eltype(b.buf))
     used = Base.format_bytes(min(Int(b.offset), cap))
     print(io, b)
     print(io, " (used: ",used, ", capacity: ", Base.format_bytes(cap), ")")
