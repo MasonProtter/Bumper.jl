@@ -77,10 +77,26 @@ end
 Use Bumper.reset_buffer!(b::AllocBuffer) to reclaim its memory.")
 end
 
-function Base.show(io::IO, b::AllocBuffer)
+# hide the type param when it is the default
+function type_name(b::AllocBuffer{Store}) where {Store}
+    if Store === Vector{UInt8}
+        string(AllocBuffer)
+    else
+        string(typeof(b))
+    end
+end
+
+# 3-arg show can use non-julia syntax to surface more information
+function Base.show(io::IO, ::MIME"text/plain", b::AllocBuffer)
     cap = length(b.buf)
     used = Base.format_bytes(min(Int(b.offset), cap))
-    print(io, "$(typeof(b))(…used=",used, ", capacity=", Base.format_bytes(cap), "…)")
+    print(io, "$(type_name(b))(used: ",used, ", capacity: ", Base.format_bytes(cap), ")")
+end
+
+# 2-arg show tries to print the syntax to construct it
+# (but may be inaccurate here with custom buffer types)
+function Base.show(io::IO, b::AllocBuffer)
+    print(io, "$(type_name(b))(", length(b.buf), ")")
 end
 
 end # module AllocBufferImpl

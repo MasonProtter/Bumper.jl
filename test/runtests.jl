@@ -190,17 +190,21 @@ end
 
 @testset "show" begin
     b = AllocBuffer(100)
-    @test sprint(show, b) == "AllocBuffer{Vector{UInt8}}(…used=0 bytes, capacity=100 bytes…)"
+    @test sprint(show, b) == "AllocBuffer(100)"
+    @test sprint(show,MIME"text/plain"(), b) == "AllocBuffer(used: 0 bytes, capacity: 100 bytes)"
     Bumper.alloc!(b, UInt8, 50)
-    @test sprint(show, b) == "AllocBuffer{Vector{UInt8}}(…used=50 bytes, capacity=100 bytes…)"
+    @test sprint(show, b) == "AllocBuffer(100)"
+    @test sprint(show,MIME"text/plain"(), b) == "AllocBuffer(used: 50 bytes, capacity: 100 bytes)"
     Bumper.alloc!(b, UInt8, 50)
-    @test sprint(show, b) == "AllocBuffer{Vector{UInt8}}(…used=100 bytes, capacity=100 bytes…)"
+    @test sprint(show, b) == "AllocBuffer(100)"
+    @test sprint(show,MIME"text/plain"(), b) == "AllocBuffer(used: 100 bytes, capacity: 100 bytes)"
 
     @static if VERSION > v"1.8-"
         try
             Bumper.alloc!(b, UInt8, 1)
         catch e
-            @test sprint(show, b) == "AllocBuffer{Vector{UInt8}}(…used=100 bytes, capacity=100 bytes…)"
+            @test sprint(show, b) == "AllocBuffer(100)"
+            @test sprint(show,MIME"text/plain"(), b) == "AllocBuffer(used: 100 bytes, capacity: 100 bytes)"
         else
             @test false
         end
