@@ -79,7 +79,8 @@ end
 
 function Base.show(io::IO, b::AllocBuffer)
     cap = length(b.buf)
-    print(io, "$(typeof(b))(…used=",min(Int(b.offset), cap), ", capacity=",cap, "…)")
+    used = Base.format_bytes(min(Int(b.offset), cap))
+    print(io, "$(typeof(b))(…used=",used, ", capacity=", Base.format_bytes(cap), "…)")
 end
 
 end # module AllocBufferImpl
