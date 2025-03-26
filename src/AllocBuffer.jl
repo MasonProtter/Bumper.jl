@@ -90,7 +90,8 @@ end
 function Base.show(io::IO, ::MIME"text/plain", b::AllocBuffer)
     cap = length(b.buf)
     used = Base.format_bytes(min(Int(b.offset), cap))
-    print(io, "$(type_name(b))(used: ",used, ", capacity: ", Base.format_bytes(cap), ")")
+    print(io, b)
+    print(io, " (used: ",used, ", capacity: ", Base.format_bytes(cap), ")")
 end
 
 # 2-arg show tries to print the syntax to construct it
