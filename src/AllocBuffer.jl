@@ -77,4 +77,9 @@ end
 Use Bumper.reset_buffer!(b::AllocBuffer) to reclaim its memory.")
 end
 
+function Base.show(io::IO, b::AllocBuffer)
+    cap = length(b.buf)
+    print(io, "$(typeof(b))(…used=",min(Int(b.offset), cap), ", capacity=",cap, "…)")
+end
+
 end # module AllocBufferImpl
