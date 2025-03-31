@@ -406,5 +406,111 @@ shell> ./times_table 12, 7
 </details>
 </p>
 
+
+## `@withalloc`
+
+<details><summary>Click me!</summary>
+<p>
+
+Bumper-allocating an array in a function and passing it back to the caller should generally be avoided. This results in a common pattern: 
+```julia
+@no_escape begin 
+   # determine the type and size a required array
+   T, N = determine_array(x1, x2, x3)
+   # preallocate some arrays
+   A = @alloc(T, N)
+   # do a computation on A 
+   calculate_something!(A, x1, x2, x3)
+end 
+```
+
+The `@withalloc` macro replaces the above 3 lines with 
+```julia 
+@no_escape begin 
+   A = @withalloc calculate_something!(x1, x2, x3)
+end
+```
+The only requirement is that a method of `Bumper.whatalloc` is implemented that determines the shape and type of the output `A`.
+
+
+### `@with_alloc` Usage Examples 
+
+```julia
+using LinearAlgebra, Bumper
+
+# simple allocating operation
+B = randn(5,10)
+C = randn(10, 3)
+A1 = B * C
+
+# we wrap mul! into a new function to avoid type piracy
+mymul!(A, B, C) = mul!(A, B, C)
+
+# tell `Bumper` how to allocate memory for `mymul!`
+Bumper.whatalloc(::typeof(mymul!), B, C) = 
+          (promote_type(eltype(B), eltype(C)), size(B, 1), size(C, 2))
+
+# the "naive use" of automated pre-allocation could look like this: 
+# This is essentially the code that the macro @withalloc generates
+@no_escape begin 
+   A2_alloc_info = Bumper.whatalloc(mymul!, B, C)
+   A2 = @alloc(A2_alloc_info...)
+   mymul!(A2, B, C)
+
+   @show A2 ≈ A1
+end
+
+# but the same pattern will be repreated over and over so ... 
+@no_escape begin 
+   A3 = @withalloc mymul!(B, C)
+   @show A3 ≈ A1 
+end
+
+# ------------------------------------------------------------------------
+
+# Multiple arrays are handled via tuples: 
+
+B = randn(5,10)
+C = randn(10, 3)
+D = randn(10, 5)
+A1 = B * C 
+A2 = B * D
+
+mymul2!(A1, A2, B, C, D) = mul!(A1, B, C), mul!(A2, B, D)
+
+function Bumper.whatalloc(::typeof(mymul2!), B, C, D) 
+   T1 = promote_type(eltype(B), eltype(C)) 
+   T2 = promote_type(eltype(B), eltype(D))
+   return ( (T1, size(B, 1), size(C, 2)), 
+            (T2, size(B, 1), size(D, 2)) )
+end
+
+@no_escape begin 
+   A1b, A2b = Bumper.@withalloc mymul2!(B, C, D)
+   @show A1 ≈ A1b, A2 ≈ A2b   # true, true 
+end
+``` 
+
+This approach should become non-allocating, which we can quickly check. 
+```julia
+using LinearAlgebra, Bumper 
+
+mymul!(A, B, C) = mul!(A, B, C)
+
+Bumper.whatalloc(::typeof(mymul!), B, C) = 
+          (promote_type(eltype(B), eltype(C)), size(B, 1), size(C, 2))
+
+nalloc = let B = randn(5,10), C = randn(10, 3)
+   @allocated sum( @withalloc mymul!(B, C) )
+end          
+
+@show nalloc  # 0 
+```
+
+
+</details>
+</p>
+
+
 ## Docstrings
 See the full list of docstrings [here](Docstrings.md).

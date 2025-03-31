@@ -187,3 +187,8 @@ end
     @test default_buffer(AllocBuffer) === default_buffer(AllocBuffer)
     @test default_buffer(AllocBuffer) !== with_buffer(() -> default_buffer(AllocBuffer), AllocBuffer())
 end
+
+
+@testset "WithAlloc" begin
+    include("test_withalloc.jl")
+end
