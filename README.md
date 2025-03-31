@@ -433,7 +433,7 @@ end
 The only requirement is that a method of `Bumper.whatalloc` is implemented that determines the shape and type of the output `A`.
 
 
-### `@with_alloc` Usage Examples 
+### `@withalloc` Usage Examples 
 
 ```julia
 using LinearAlgebra, Bumper
