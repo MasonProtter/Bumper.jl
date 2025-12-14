@@ -149,7 +149,7 @@ an error if you overfill them.
   corresponding `@no_escape` block uses.
 - You cannot use `@alloc` from a different concurrent task than its parent `@no_escape` block as this can cause concurrency bugs. 
 - If for some reason you need to be able to use `@alloc` outside of the scope of the `@no_escape` block, there is a
-  function  `Bumper.alloc!(bug, T, n...)` which takes in an explicit buffer `buf` and uses it to allocate an array of
+  function  `Bumper.alloc!(buf, T, n...)` which takes in an explicit buffer `buf` and uses it to allocate an array of
   element type `T`, and dimensions `n...`. Using this is not as safe as `@alloc` and not recommended.
 - Bumper.jl only supports `isbits` types. You cannot use it for allocating vectors containing mutable, abstract, or
   other pointer-backed objects. 
