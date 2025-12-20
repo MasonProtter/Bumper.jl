@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 0.7.1
+
+- Adds `show` method for `AllocBuffer`
+
 ## Version 0.7.0
 
 - The type of array created by `@alloc` and `alloc!` has been changed from a `StrideArraysCore.PtrArray` to `UnsafeArrays.UnsafeArray`. This shouldn't matter for most purposes, but can break code that relies on a specific return type.
