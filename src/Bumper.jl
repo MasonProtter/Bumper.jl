@@ -1,6 +1,7 @@
 module Bumper
 
-export SlabBuffer, AllocBuffer, @alloc, @alloc_ptr, default_buffer, @no_escape, with_buffer
+export SlabBuffer, AllocBuffer, @alloc, @alloc_ptr, default_buffer, @no_escape, 
+       with_buffer, @withalloc, withalloc
 using UnsafeArrays: UnsafeArrays, UnsafeArray
 
 
@@ -154,6 +155,7 @@ import .SlabBufferImpl: SlabBuffer
 include("AllocBuffer.jl")
 import .AllocBufferImpl: AllocBuffer
 
-
+include("withalloc.jl")
+import .WithAlloc: @withalloc, withalloc, whatalloc
 
 end # Bumper
