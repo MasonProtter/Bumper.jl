@@ -9,8 +9,8 @@ function f(x, buf=default_buffer())
 end
 
 function g(x, buf)
-    @no_escape buf begin 
-        y = Bumper.alloc!(buf, eltype(x), length(x)) 
+    @no_escape buf begin
+        y = Bumper.alloc!(buf, eltype(x), length(x))
         y .= x .+ 1
         sum(y)
     end
@@ -28,7 +28,7 @@ end
     @test b.offset == 0
     @test g(v, b)  == 9
     @test b.offset == 0
-    
+
     @test @allocated(f(v)) == 0
     @test @allocated(f(v, b)) == 0
     @test @allocated(g(v, b)) == 0
@@ -57,16 +57,16 @@ end
     @test sb.current == sb.slabs[1]
     @test sb.slab_end == sb.current + 16_384
 
-    
+
     @no_escape sb begin
         current = sb.current
         p = @alloc_ptr(10)
-        @test p == current 
+        @test p == current
         @test sb.current == p + 10
         p2 = @alloc_ptr(100_000)
         @test p2 == sb.custom_slabs[end]
     end
-    
+
     try
         @no_escape sb begin
             x = @alloc(Int8, 16_383)
@@ -78,20 +78,20 @@ end
         @test length(sb.custom_slabs) == 1
         @test length(sb.slabs) == 2
         @test sb.current  == sb.slabs[2] + 10
-        
+
         Bumper.reset_buffer!(sb)
 
         @test isempty(sb.custom_slabs)
         @test length(sb.slabs) == 1
         @test sb.current  == sb.slabs[1]
     end
-    
+
     @no_escape b begin
         y = @alloc(Int, length(v))
         off1 = b.offset
         @no_escape b begin
             z = @alloc(Int, length(v))
-            
+
             @test pointer(z) != pointer(y)
             @test Int(pointer(z)) == Int(pointer(y)) + 8*length(v)
             @test b.offset == off1 + 8*length(v)
@@ -101,7 +101,7 @@ end
             z = @alloc(Int, length(v))
             @test pointer(z) == pointer(b2.buf)
         end
-        
+
         @test b.offset == off1
     end
 
@@ -132,11 +132,11 @@ end
     # It is very tricky to properly deal with code which uses @goto or return inside
     # a @no_escape code block, because could bypass the mechanism for resetting the
     # buffer's offset after the block completes.
-    
+
     # I played with some mechanisms for cleaning it up, but they were sometimes incorrect
     # if one nested multuple @no_escape blocks, so I decided that they should simply be
     # disabled, and throw an error at macroexpansion time.
-    
+
     @test_throws Exception Bumper.Internals._no_escape_macro(
         :(default_buffer()),
         :(return sum(@alloc(Int, 10) .= 1)),
@@ -178,12 +178,42 @@ end
             default_buffer()
         end
     end
-    
+
     @test default_buffer() === default_buffer()
     @test default_buffer() !== fetch(@async default_buffer())
     @test default_buffer() !== fetch(Threads.@spawn default_buffer())
-    
+
     @test default_buffer() !== with_buffer(default_buffer, SlabBuffer())
     @test default_buffer(AllocBuffer) === default_buffer(AllocBuffer)
     @test default_buffer(AllocBuffer) !== with_buffer(() -> default_buffer(AllocBuffer), AllocBuffer())
+end
+
+@testset "show" begin
+    b = AllocBuffer(100)
+    @test sprint(show, b) == "AllocBuffer(100)"
+    @test sprint(show,MIME"text/plain"(), b) == "AllocBuffer(100) (used: 0 bytes, capacity: 100 bytes)"
+    Bumper.alloc!(b, UInt8, 50)
+    @test sprint(show, b) == "AllocBuffer(100)"
+    @test sprint(show,MIME"text/plain"(), b) == "AllocBuffer(100) (used: 50 bytes, capacity: 100 bytes)"
+    Bumper.alloc!(b, UInt8, 50)
+    @test sprint(show, b) == "AllocBuffer(100)"
+    @test sprint(show,MIME"text/plain"(), b) == "AllocBuffer(100) (used: 100 bytes, capacity: 100 bytes)"
+
+    @static if VERSION > v"1.8-"
+        try
+            Bumper.alloc!(b, UInt8, 1)
+        catch e
+            @test sprint(show, b) == "AllocBuffer(100)"
+            @test sprint(show,MIME"text/plain"(), b) == "AllocBuffer(100) (used: 100 bytes, capacity: 100 bytes)"
+        else
+            @test false
+        end
+    end
+
+    # test with non-standard backing
+    backing = ones(Float32, 25)
+    b = AllocBuffer(backing)
+    @test sprint(show, b) == "AllocBuffer{Vector{Float32}}(25)"
+    @test sprint(show,MIME"text/plain"(), b) == "AllocBuffer{Vector{Float32}}(25) (used: 0 bytes, capacity: 100 bytes)"
+
 end
