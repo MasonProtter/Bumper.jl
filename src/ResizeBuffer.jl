@@ -14,13 +14,25 @@ const default_max_size = 1_048_576
 
 """
     ResizeBuffer
+    ResizeBuffer(max_size = $default_max_size; finalize::Bool = true)
 
-This is an adaptive bump allocator that is oriented towards workflows that repeatedly perform a similar operation,
-for which it is a priori not easy to determine how much memory is needed.
-It stores both a buffer that will be used for allocations as long as its capacity is not exceeded,
-as well as allowing for overflow whenever the requested memory exceeds the capacity size.
-Upon fully resetting the `ResizeBuffer`, it will adaptively resize to avoid having to overflow if the same operation
-is carried out again.
+*New in v0.7.2.*
+
+An adaptive bump allocator oriented towards workflows that repeatedly perform a similar operation where
+the amount of memory needed is not known a priori. Allocations are served from an internal fixed buffer;
+when that buffer is exhausted, overflow allocations are made on the heap so no allocation ever fails.
+Upon a full `reset_buffer!`, overflow memory is freed and the internal buffer is resized to the
+peak observed usage, so that future iterations of the same operation avoid overflow entirely.
+
+In contrast, `SlabBuffer` frees extra slabs when their allocations are released and does not retain
+memory between operations — it "forgets" peak usage and shrinks back to its baseline size.
+`ResizeBuffer` is the better choice when you expect to repeat the same memory-intensive operation many
+times and want the allocator to warm up to the right size rather than paying the cost of fresh slab
+allocation on each call.
+
+The initial buffer capacity is given by `max_size`. If you set the `finalize` keyword argument to
+`false`, then you will need to explicitly call `Bumper.free(buf)` when you are done with the
+`ResizeBuffer`. This is not recommended.
 
 Do not manually manipulate the fields of a `ResizeBuffer` that is in use.
 """
@@ -43,14 +55,6 @@ mutable struct ResizeBuffer
     end
 end
 
-@doc """
-    ResizeBuffer(max_size = $default_max_size; finalize::Bool = true)
-
-Create an adaptive bump allocator where the initial size is given by `max_size`.
-If you set the `finalize` keyword argument to `false`, then you will need to explicitly
-call `Bumper.free(buf)` when you are done with the `ResizeBuffer`. This is not recommended.
-""" ResizeBuffer
-
 function free(buf::ResizeBuffer)
     foreach(free, buf.overflow)
     free(buf.buf)
@@ -63,8 +67,8 @@ const default_buffer_key = gensym(:buffer)
 """
     default_buffer(::Type{ResizeBuffer}) -> ResizeBuffer
 
-Return the current task-local default `ResizeBuffer`, if one does not exist in the current task,
-it will create one automatically.
+Return the current task-local default `ResizeBuffer`, creating one automatically if it does not yet
+exist in the current task.
 """
 function default_buffer(::Type{ResizeBuffer})
     return get!(() -> ResizeBuffer(), task_local_storage(), default_buffer_key)::ResizeBuffer

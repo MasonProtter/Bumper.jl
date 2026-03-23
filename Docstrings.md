@@ -2,7 +2,7 @@
 
 ## User API
 
-```
+```julia
 @no_escape([buf=default_buffer()], expr)
 ```
 
@@ -14,7 +14,7 @@ Using `return`, `@goto`, and `@label` are not allowed inside of `@no_escape` blo
 
 Example:
 
-```
+```julia
 function f(x::Vector{Int})
     # Set up a scope where memory may be allocated, and does not escape:
     @no_escape begin
@@ -28,7 +28,7 @@ end
 ```
 
 ---------------------------------------
-```
+```julia
 @alloc(T, n::Int...) -> UnsafeArray{T, length(n)}
 ```
 
@@ -37,7 +37,7 @@ This can be used inside a `@no_escape` block to allocate a `UnsafeArray` whose d
 Do not allow any references to this array to escape the enclosing `@no_escape` block, and do not pass these arrays to concurrent tasks unless that task is guaranteed to terminate before the `@no_escape` block ends. Any array allocated in this way which is found outside of its parent `@no_escape` block has undefined contents, and writing to this pointer will have undefined behaviour.
 
 ---------------------------------------
-```
+```julia
 @alloc_ptr(n::Integer) -> Ptr{Nothing}
 ```
 
@@ -46,26 +46,32 @@ This can be used inside a `@no_escape` block to allocate a pointer which can hol
 Do not allow any references to this pointer to escape the enclosing `@no_escape` block, and do not pass these pointers to concurrent tasks unless that task is guaranteed to terminate before the `@no_escape` block ends. Any pointer allocated in this way which is found outside of its parent `@no_escape` block has undefined contents, and writing to this pointer will have undefined behaviour.
 
 ---------------------------------------
-```
+```julia
 default_buffer(::Type{SlabBuffer}) -> SlabBuffer{1048576}
 ```
 
 Return the current task-local default `SlabBuffer`, if one does not exist in the current task, it will create one automatically. This currently can only create `SlabBuffer{1048576}`, and you cannot adjust the slab size it creates.
 
-```
+```julia
 default_buffer() -> SlabBuffer{1048576}
 ```
 
 Return the current task-local default `SlabBuffer`, if one does not exist in the current task, it will create one automatically. This currently only works with `SlabBuffer{1048576}`, and you cannot adjust the slab size it creates.
 
-```
+```julia
 default_buffer(::Type{AllocBuffer}) -> AllocBuffer{Vector{UInt8}}
 ```
 
 Return the current task-local default `AllocBuffer`, if one does not exist in the current task, it will create one automatically. This currently can only create `AllocBuffer{Vector{UInt8}}`, and you cannot adjust the memory size it creates (1048576 bytes).
 
----------------------------------------
+```julia
+default_buffer(::Type{ResizeBuffer}) -> ResizeBuffer
 ```
+
+Return the current task-local default `ResizeBuffer`, creating one automatically if it does not yet exist in the current task.
+
+---------------------------------------
+```julia
 mutable struct SlabBuffer{SlabSize}
 ```
 
@@ -75,7 +81,7 @@ The default slab size is 1048576 bytes.
 
 `SlabBuffer`s are nearly as fast as stack allocation (typically up to within a couple of nanoseconds) for typical use. One potential performance pitfall is if that `SlabBuffer`'s current position is at the end of a slab, then the next allocation will be slow because it requires a new slab to be created. This means that if you do something like
 
-```
+```julia
 buf = SlabBuffer{N}()
 @no_escape buf begin
     @alloc(Int8, N÷2 - 1) # Take up just under half the first slab
@@ -94,27 +100,43 @@ then the inner loop will run slower than normal because at each iteration, a new
 
 Do not manipulate the fields of a SlabBuffer that is in use.
 
-```
+```julia
 SlabBuffer{SlabSize}(;finalize::Bool = true)
 ```
 
 Create a slab allocator whose slabs are of size `SlabSize`. If you set the `finalize` keyword argument to `false`, then you will need to explicitly call `Bumper.free()` when you are done with a `SlabBuffer`. This is not recommended.
 
-```
+```julia
 SlabBuffer(;finalize::Bool = true)
 ```
 
 Create a slab allocator whose slabs are of size 1048576. If you set the `finalize` keyword argument to `false`, then you will need to explicitly call `Bumper.free()` when you are done with a `SlabBuffer`. This is not recommended.
 
 ---------------------------------------
+```julia
+ResizeBuffer
+ResizeBuffer(max_size = 1048576; finalize::Bool = true)
 ```
+
+*New in v0.7.2.*
+
+An adaptive bump allocator oriented towards workflows that repeatedly perform a similar operation where the amount of memory needed is not known a priori. Allocations are served from an internal fixed buffer; when that buffer is exhausted, overflow allocations are made on the heap so no allocation ever fails. Upon a full `reset_buffer!`, overflow memory is freed and the internal buffer is resized to the peak observed usage, so that future iterations of the same operation avoid overflow entirely.
+
+In contrast, `SlabBuffer` frees extra slabs when their allocations are released and does not retain memory between operations — it "forgets" peak usage and shrinks back to its baseline size. `ResizeBuffer` is the better choice when you expect to repeat the same memory-intensive operation many times and want the allocator to warm up to the right size rather than paying the cost of fresh slab allocation on each call.
+
+The initial buffer capacity is given by `max_size`. If you set the `finalize` keyword argument to `false`, then you will need to explicitly call `Bumper.free(buf)` when you are done with the `ResizeBuffer`. This is not recommended.
+
+Do not manually manipulate the fields of a `ResizeBuffer` that is in use.
+
+---------------------------------------
+```julia
 Bumper.reset_buffer!(buf=default_buffer())
 ```
 
 This resets a buffer to its default state, effectively making it like a freshly allocated buffer. This might be necessary to use if you accidentally over-allocate a buffer or screw up its state in some other way.
 
 ---------------------------------------
-```
+```julia
 with_buffer(f, buf)
 ```
 
@@ -122,7 +144,7 @@ Execute the function `f()` in a context where `default_buffer()` will return `bu
 
 Example:
 
-```
+```julia
 julia> let b1 = default_buffer()
            b2 = SlabBuffer()
            with_buffer(b2) do
@@ -138,21 +160,21 @@ true
 ---------------------------------------
 ## Allocator API
 
-```
+```julia
 Bumper.alloc_ptr!(b, n::Int) -> Ptr{Nothing}
 ```
 
 Take a pointer which can store at least `n` bytes from the allocator `b`.
 
 ---------------------------------------
-```
+```julia
 Bumper.alloc!(b, ::Type{T}, n::Int...) -> UnsafeArray{T, length(n)}
 ```
 
 Function-based alternative to `@alloc` which allocates onto a specified allocator `b`. You must obey all the rules from `@alloc`, but you can use this outside of the lexical scope of `@no_escape` for specific (but dangerous!) circumstances where you cannot avoid a scope barrier between the two.
 
 ---------------------------------------
-```
+```julia
 Bumper.checkpoint_save(buf = default_buffer())
 ```
 
@@ -161,7 +183,7 @@ Returns a checkpoint object `cp` which stores the state of a `buf` at a given po
 Users should prefer to use `@no_escape` instead of `checkpoint_save` and `checkpoint_restore`, which is a safer and more structured way of doing the same thing.
 
 ---------------------------------------
-```
+```julia
 Bumper.checkpoint_restore!(cp)
 ```
 
