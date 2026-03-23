@@ -109,6 +109,111 @@ end
     Bumper.reset_buffer!(b)
     Bumper.reset_buffer!()
 
+    rb = ResizeBuffer(1000)
+
+    # Basic allocation tests for ResizeBuffer
+    @test f(v, rb) == 9
+    @test rb.offset == 0
+    @test g(v, rb) == 9
+    @test rb.offset == 0
+
+    @test @allocated(f(v, rb)) == 0
+    @test @allocated(g(v, rb)) == 0
+
+    # Test nested allocations for ResizeBuffer
+    @no_escape rb begin
+        y = @alloc(Int, length(v))
+        off1 = rb.offset
+        @no_escape rb begin
+            z = @alloc(Int, length(v))
+
+            @test pointer(z) != pointer(y)
+            @test Int(pointer(z)) == Int(pointer(y)) + 8 * length(v)
+            @test rb.offset == off1 + 8 * length(v)
+        end
+
+        @test rb.offset == off1
+    end
+
+    # Test buffer growth for ResizeBuffer
+    @no_escape rb begin
+        current = rb.offset
+        x = @alloc(Int8, 500)
+        @test rb.offset == current + 500
+        @test rb.max_offset == current + 500
+    end
+
+    # After no_escape, offset should be reset but max_offset preserved
+    @test rb.offset == 0
+    @test rb.max_offset > 0
+
+    # Test overflow allocation (exceeding buffer size) for ResizeBuffer
+    rb2 = ResizeBuffer(100)
+    @no_escape rb2 begin
+        x = @alloc(Int8, 50)  # Within buffer
+        @test rb2.offset == 50
+        @test isempty(rb2.overflow)
+
+        y = @alloc(Int8, 60)  # Exceeds remaining buffer space
+        @test rb2.offset == 110
+        @test length(rb2.overflow) == 1
+    end
+
+    # After no_escape, overflow should be cleared
+    @test rb2.offset == 0
+    @test isempty(rb2.overflow)
+
+    # Test reset_buffer! for ResizeBuffer
+    rb3 = ResizeBuffer(100)
+    @no_escape rb3 begin
+        @alloc(Int8, 50)
+        @test rb3.offset == 50
+        @test rb3.max_offset == 50
+    end
+
+    Bumper.reset_buffer!(rb3)
+    @test rb3.offset == 0
+    @test rb3.max_offset == 0
+
+    # Test alloc_ptr! for ResizeBuffer
+    rb4 = ResizeBuffer(100)
+    @no_escape rb4 begin
+        current = rb4.offset
+        p = @alloc_ptr(10)
+        @test rb4.offset == current + 10
+
+        p2 = @alloc_ptr(20)
+        @test rb4.offset == current + 30
+        @test Int(p2) == Int(p) + 10
+    end
+
+    # Test buffer resize on next allocation after exceeding initial max_offset
+    rb5 = ResizeBuffer(100)
+    @no_escape rb5 begin
+        x = @alloc(Int8, 150)  # Exceeds initial buffer, triggers resize
+        @test rb5.max_offset == 150
+        @test rb5.buf_len == 150  # Buffer was resized
+        @test isempty(rb5.overflow)  # But still fits in resized buffer
+    end
+
+    # The buffer should now be empty
+    @test rb5.offset == 0
+    @test isempty(rb5.overflow)
+
+    # Test actual overflow when we exceed the resized buffer
+    rb6 = ResizeBuffer(100)
+    @no_escape rb6 begin
+        x = @alloc(Int8, 50)  # Fits in buffer
+        y = @alloc(Int8, 100) # Exceeds buffer size
+        @test rb6.offset == 150
+        @test rb6.max_offset == 150
+        @test !isempty(rb6.overflow)
+    end
+
+    # After @no_escape, overflow is cleared
+    @test rb6.offset == 0
+    @test isempty(rb6.overflow)
+
     @test_throws Exception @no_escape begin
         @alloc(Int, 10)
     end
@@ -186,4 +291,33 @@ end
     @test default_buffer() !== with_buffer(default_buffer, SlabBuffer())
     @test default_buffer(AllocBuffer) === default_buffer(AllocBuffer)
     @test default_buffer(AllocBuffer) !== with_buffer(() -> default_buffer(AllocBuffer), AllocBuffer())
+
+    # Test default_buffer for ResizeBuffer
+    rb_default = default_buffer(ResizeBuffer)
+    @test rb_default isa ResizeBuffer
+    @test default_buffer(ResizeBuffer) === rb_default
+
+    # Test with_buffer for ResizeBuffer
+    rb4 = ResizeBuffer(200)
+    rb5 = ResizeBuffer(300)
+
+    @test default_buffer(ResizeBuffer) === rb_default
+    with_buffer(rb4) do
+        @test default_buffer(ResizeBuffer) === rb4
+        @test default_buffer(ResizeBuffer) !== rb_default
+
+        with_buffer(rb5) do
+            @test default_buffer(ResizeBuffer) === rb5
+            @test default_buffer(ResizeBuffer) !== rb4
+        end
+
+        @test default_buffer(ResizeBuffer) === rb4
+    end
+    @test default_buffer(ResizeBuffer) === rb_default
+
+    # Test that ResizeBuffer works across different tasks
+    @test default_buffer(ResizeBuffer) === default_buffer(ResizeBuffer)
+    @test default_buffer(ResizeBuffer) !== fetch(@async default_buffer(ResizeBuffer))
+    @test default_buffer(ResizeBuffer) !==
+        fetch(Threads.@spawn default_buffer(ResizeBuffer))
 end

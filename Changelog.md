@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 0.7.2
+
++ Added `ResizeBuffer`: an adaptive bump allocator for workflows where the required memory is not known in advance. It uses a fixed internal buffer and falls back to overflow heap allocations when full. On `reset_buffer!`, it resizes its internal buffer to the observed peak usage to reduce future overflow.
+
 ## Version 0.7.0
 
 - The type of array created by `@alloc` and `alloc!` has been changed from a `StrideArraysCore.PtrArray` to `UnsafeArrays.UnsafeArray`. This shouldn't matter for most purposes, but can break code that relies on a specific return type.

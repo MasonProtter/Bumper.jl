@@ -1,7 +1,7 @@
 name = "Bumper"
 uuid = "8ce10254-0962-460f-a3d8-1f77fea1446e"
 authors = ["MasonProtter <mason.protter@icloud.com>"]
-version = "0.7.1"
+version = "0.7.2"
 
 [deps]
 UnsafeArrays = "c4a57d5a-5b31-53a6-b365-19f8c011fbd6"

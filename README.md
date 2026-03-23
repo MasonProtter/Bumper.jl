@@ -138,8 +138,10 @@ multiple concurrent tasks using that buffer at the same time.
 
 Running `default_buffer()` will give you the current task's default buffer. You can explicitly construct
 your own `N` byte buffer by calling `AllocBuffer(N)`, or you can create a buffer which can dynamically
-grow by calling `SlabBuffer()`. `AllocBuffer`s are *slightly* faster than `SlabBuffer`s, but will throw 
-an error if you overfill them.
+grow by calling `SlabBuffer()`. `AllocBuffer`s are *slightly* faster than `SlabBuffer`s, but will throw
+an error if you overfill them. You can also create a `ResizeBuffer()`, which starts with a fixed buffer
+but adaptively resizes itself upon a full reset to reduce future overflow — making it well-suited for
+repeated operations where the memory footprint is not known in advance.
 
 ## Important notes
 
@@ -248,6 +250,30 @@ will be thrown. By default, `AllocBuffer` stores a `Vector{UInt8}` of `1` megaby
 Allocations using `AllocBuffer`s should be just as fast as stack allocation.
 
 Do not manually manipulate the fields of an AllocBuffer that is in use.
+
+### ResizeBuffer
+
+*New in v0.7.2.*
+
+`ResizeBuffer` is an adaptive bump allocator oriented towards workflows that repeatedly perform a similar
+operation for which it is not easy to determine upfront how much memory is needed. It holds an internal
+fixed-size buffer and serves allocations from it as long as capacity permits. When the buffer is
+exhausted, overflow allocations are made directly on the heap so that no allocation ever fails.
+
+Upon calling `reset_buffer!` on a `ResizeBuffer`, all overflow memory is freed and the internal buffer is
+resized to the peak memory usage observed since the last full reset. This means that if you repeatedly
+perform the same operation, the buffer will converge to the right size and avoid overflow allocations
+entirely after the first iteration or two.
+
+This contrasts with `SlabBuffer`, which frees any extra slabs it acquired during a large allocation as
+soon as those allocations are released. A `SlabBuffer` will shrink back to its baseline size after a
+`@no_escape` block completes, "forgetting" how much memory was needed. A `ResizeBuffer` deliberately
+retains that information, keeping a large buffer available for the next time the same operation runs.
+
+By default, `ResizeBuffer` creates a buffer with 1 megabyte of initial capacity. You can adjust this with
+`ResizeBuffer(n)`. A task-local default `ResizeBuffer` is accessible via `default_buffer(ResizeBuffer)`.
+
+Do not manually manipulate the fields of a ResizeBuffer that is in use.
 
 </details>
 </p>
